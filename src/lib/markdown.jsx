@@ -34,8 +34,11 @@ function inline(text, keyBase) {
   let last = 0
   let m
   let k = 0
-  INLINE.lastIndex = 0
-  while ((m = INLINE.exec(text))) {
+  // A fresh regex per call: this function recurses into **bold**, and a shared
+  // global regex would have its lastIndex reset by the inner call, sending the
+  // outer loop back to the start forever (the tab ran out of memory).
+  const re = new RegExp(INLINE.source, 'g')
+  while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index))
     const tok = m[0]
     const key = `${keyBase}-${k++}`
