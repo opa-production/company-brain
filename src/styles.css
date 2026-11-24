@@ -978,3 +978,6 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 .processing-row .file-badge { animation: badge-pulse 1.6s ease-in-out infinite; }
 @keyframes badge-pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .up-bar::after, .processing-row .file-badge { animation: none; } }
+
+.ocr-hint { margin: 6px 2px 0; line-height: 1.4; }
+.doc-status .ghost-btn.full + .ghost-btn.full { margin-top: 8px; }

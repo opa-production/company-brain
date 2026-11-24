@@ -108,8 +108,8 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
 
   const dismissUpload = (id) => setUploads((us) => us.filter((u) => u.id !== id))
 
-  const retry = async (id) => {
-    try { upsert(await api.retryDocument(id)) } catch (e) { setNotice(e.message) }
+  const retry = async (id, opts) => {
+    try { upsert(await api.retryDocument(id, opts)) } catch (e) { setNotice(e.message) }
   }
 
   const remove = async (id) => {

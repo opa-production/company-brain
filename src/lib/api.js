@@ -122,7 +122,9 @@ export const addLink = (url, group = 'links', title) =>
 export const getDocument = (id) => request(`/brain/kb/documents/${id}`)
 export const documentText = (id) => request(`/brain/kb/documents/${id}/text`)
 export const downloadLink = (id) => request(`/brain/kb/documents/${id}/download`)
-export const retryDocument = (id) => request(`/brain/kb/documents/${id}/retry`, { method: 'POST' })
+// `ocr: true` re-reads a PDF with OCR only, for PDFs whose pages are images.
+export const retryDocument = (id, { ocr = false } = {}) =>
+  request(`/brain/kb/documents/${id}/retry${ocr ? '?ocr=true' : ''}`, { method: 'POST' })
 export const updateDocument = (id, patch) => request(`/brain/kb/documents/${id}`, { method: 'PATCH', body: patch })
 export const deleteDocument = (id) => request(`/brain/kb/documents/${id}`, { method: 'DELETE' })
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  X, CheckCircle2, AlertCircle, Circle, Download, Trash2, RotateCcw, MessageSquareText, Lock, FileText, ExternalLink,
+  X, CheckCircle2, AlertCircle, Circle, Download, Trash2, RotateCcw, MessageSquareText, Lock, FileText, ExternalLink, ScanText,
 } from 'lucide-react'
 import { FileBadge } from './Icon.jsx'
 import * as api from '../lib/api.js'
@@ -14,8 +14,11 @@ export const STAGES = ['Uploaded', 'Extracting text', 'Splitting into passages',
 // Opens a document: the reader on the left (the original PDF when there is
 // one, otherwise the text Brain extracted) and its ingestion status on the right.
 export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
-  const { groups } = useBrain()
+  const { groups, me } = useBrain()
   const isPdf = doc.kind === 'file' && doc.type === 'pdf'
+  // Any PDF, uploaded or linked, can be re-read with OCR once it isn't mid-read.
+  const canOcr = doc.type === 'pdf' && (doc.status === 'failed' || doc.status === 'indexed')
+  const ocrReady = !!me?.ocr_available
   const [tab, setTab] = useState(isPdf && doc.status === 'indexed' ? 'original' : 'text')
   const [pages, setPages] = useState(null)
   const [textError, setTextError] = useState('')
@@ -121,6 +124,23 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
             </ol>
             {doc.status === 'failed' && (
               <button className="ghost-btn full" onClick={() => onRetry(doc.id)}><RotateCcw size={15} /> Retry</button>
+            )}
+            {canOcr && (
+              <>
+                <button
+                  className="ghost-btn full"
+                  disabled={!ocrReady}
+                  title={ocrReady ? 'Read the page images with OCR' : "OCR isn't set up on the server yet"}
+                  onClick={() => onRetry(doc.id, { ocr: true })}
+                >
+                  <ScanText size={15} /> {doc.status === 'failed' ? 'Try with OCR' : 'Re-read with OCR'}
+                </button>
+                <p className="muted small ocr-hint">
+                  {ocrReady
+                    ? 'For PDFs whose pages are images, like eCitizen/BRS certificates and scans.'
+                    : "OCR isn't set up on the server yet (tesseract-ocr)."}
+                </p>
+              </>
             )}
           </section>
 
