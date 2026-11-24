@@ -126,7 +126,8 @@ export default function App() {
   const patchMsg = (chatId, msgId, fn) =>
     patchChat(chatId, (c) => ({ ...c, messages: (c.messages || []).map((m) => (m.id === msgId ? fn(m) : m)) }))
 
-  const startTurn = (chatId, prompt, { onAnswer } = {}) => {
+  // `spoken`: asked in voice mode, so Brain answers in plain talk to be read aloud.
+  const startTurn = (chatId, prompt, { onAnswer, spoken = false } = {}) => {
     const chat = chatsRef.current.find((c) => c.id === chatId)
     const aId = uid('a')
     patchChat(chatId, (c) => ({
@@ -138,7 +139,7 @@ export default function App() {
     const finish = () => { setBusy(false); cancelRef.current = null }
 
     cancelRef.current = api.streamChat(
-      { message: prompt, conversationId: chat?.serverId, specialist: chat?.specialist, mode: model },
+      { message: prompt, conversationId: chat?.serverId, specialist: chat?.specialist, mode: model, spoken },
       {
         onMeta: (meta) => patchChat(chatId, (c) => ({
           ...c, serverId: meta.conversation_id, title: c.serverId ? c.title : meta.title, updatedAt: new Date().toISOString(), day: 'Today',
@@ -290,7 +291,7 @@ export default function App() {
   // Voice: send the transcript as a normal turn and hand back the answer to speak.
   const sendRef = useRef(send)
   sendRef.current = send
-  const askByVoice = useCallback((text) => new Promise((resolve) => sendRef.current(text, { onAnswer: resolve })), [])
+  const askByVoice = useCallback((text) => new Promise((resolve) => sendRef.current(text, { onAnswer: resolve, spoken: true })), [])
 
   const ctx = useMemo(() => ({ me, groups: me?.groups || [], refreshMe }), [me, refreshMe])
 

@@ -145,7 +145,7 @@ export const feedback = (messageId, value) => request(`/brain/messages/${message
  *   onError({detail, status})
  * Returns a cancel function (the Stop button).
  */
-export function streamChat({ message, conversationId, specialist, mode }, handlers) {
+export function streamChat({ message, conversationId, specialist, mode, spoken = false }, handlers) {
   const ctrl = new AbortController()
   const h = { onMeta() {}, onStep() {}, onSources() {}, onToken() {}, onDone() {}, onError() {}, ...handlers }
 
@@ -155,7 +155,7 @@ export function streamChat({ message, conversationId, specialist, mode }, handle
       res = await fetch(`${BASE}/brain/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ message, conversation_id: conversationId ?? null, specialist: specialist ?? null, mode: mode || 'fast' }),
+        body: JSON.stringify({ message, conversation_id: conversationId ?? null, specialist: specialist ?? null, mode: mode || 'fast', spoken: !!spoken }),
         signal: ctrl.signal,
       })
     } catch (e) {
