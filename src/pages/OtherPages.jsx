@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Lock, FileText, MessageSquare, Shield, AudioLines, UserRound, ShieldCheck, LogOut,
-  SlidersHorizontal, Plus, Pencil, Trash2, Loader2, ScrollText, Play, Square, Archive, ArchiveRestore,
+  SlidersHorizontal, Plus, Pencil, Trash2, Loader2, ScrollText, Play, Square, Archive, ArchiveRestore, X,
 } from 'lucide-react'
 import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY, VOICES, DEFAULT_VOICE } from '../config.js'
 import * as api from '../lib/api.js'
 import { useBrain, dayLabel } from '../lib/brain.jsx'
+import Select from '../components/Select.jsx'
 
 const EMPTY_FACT = { key: '', label: '', value: '', group: '', restricted: false, source: '' }
 
@@ -34,22 +35,46 @@ function FactForm({ initial, groups, onSaved, onCancel }) {
     }
   }
 
+  const groupOptions = groups.filter((g) => g.key !== 'links').map((g) => ({ value: g.key, label: g.name }))
+
   return (
-    <form className="fact-card fact-form" onSubmit={save}>
-      <label className="field">Label<input value={f.label} onChange={set('label')} placeholder="KRA PIN" required /></label>
-      <label className="field">Value<input value={f.value} onChange={set('value')} placeholder={f.restricted && !isNew ? 'Enter the value again to change it' : 'Exact value, copied from the certificate'} required /></label>
-      <label className="field">Group
-        <select value={f.group} onChange={set('group')} required>
-          <option value="" disabled>Choose…</option>
-          {groups.filter((g) => g.key !== 'links').map((g) => <option key={g.key} value={g.key}>{g.name}</option>)}
-        </select>
+    <form className="fact-card fact-form" onSubmit={(e) => { if (!f.group) { e.preventDefault(); return setError('Choose a group.') } save(e) }}>
+      <div className="ff-head">
+        <span className="ff-title">{isNew ? 'New fact' : 'Edit fact'}</span>
+        <button type="button" className="icon-btn sm" title="Cancel" onClick={onCancel}><X size={15} /></button>
+      </div>
+      <label className="field">Label
+        <input className="input" value={f.label} onChange={set('label')} placeholder="e.g. KRA PIN" required autoFocus={isNew} />
       </label>
-      <label className="field">Source<input value={f.source} onChange={set('source')} placeholder="KRA PIN certificate.pdf" /></label>
-      <label className="toggle"><input type="checkbox" checked={f.restricted} onChange={set('restricted')} /> Restricted (masked until revealed)</label>
+      <label className="field">Value
+        <input
+          className="input mono"
+          value={f.value}
+          onChange={set('value')}
+          placeholder={f.restricted && !isNew ? 'Enter the value again to change it' : 'Exact value, copied from the certificate'}
+          required
+        />
+      </label>
+      <div className="ff-row">
+        <div className="field">Group
+          <Select value={f.group} onChange={(v) => setF({ ...f, group: v })} options={groupOptions} placeholder="Choose a group" invalid={error === 'Choose a group.'} />
+        </div>
+        <label className="field">Source
+          <input className="input" value={f.source} onChange={set('source')} placeholder="KRA PIN certificate.pdf" />
+        </label>
+      </div>
+      <label className="switch ff-switch">
+        <input type="checkbox" checked={f.restricted} onChange={set('restricted')} />
+        <span className="switch-track"><span className="switch-thumb" /></span>
+        <span className="switch-text">
+          <span className="switch-label">Restricted</span>
+          <span className="muted small">Masked until someone reveals it. Every reveal is logged.</span>
+        </span>
+      </label>
       {error && <div className="form-error">{error}</div>}
-      <div className="ds-row">
-        <button className="primary-btn" disabled={saving}>{saving ? <Loader2 size={15} className="spin" /> : 'Save'}</button>
+      <div className="ff-foot">
         <button type="button" className="ghost-btn" onClick={onCancel}>Cancel</button>
+        <button className="primary-btn" disabled={saving}>{saving ? <Loader2 size={15} className="spin" /> : isNew ? 'Add fact' : 'Save changes'}</button>
       </div>
     </form>
   )
@@ -456,10 +481,13 @@ export function AuditPage() {
     <div className="page">
       <div className="page-head">
         <div><h2>Audit log</h2><p className="muted">Everything people have done in Brain, newest first.</p></div>
-        <select className="audit-filter" value={action} onChange={(e) => setAction(e.target.value)}>
-          <option value="">All actions</option>
-          {Object.entries(ACTION_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <div className="audit-filter">
+          <Select
+            value={action}
+            onChange={setAction}
+            options={[{ value: '', label: 'All actions' }, ...Object.entries(ACTION_LABELS).map(([k, v]) => ({ value: k, label: v }))]}
+          />
+        </div>
       </div>
       {error && <div className="notice bad">{error}</div>}
       {!rows ? <div className="empty"><Loader2 size={18} className="spin" /></div> : (
