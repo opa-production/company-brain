@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Search, PanelLeft, SquarePen, BookOpen, KeyRound, History, Settings, ChevronDown, ChevronRight, ArrowRight,
   MoreHorizontal, Pencil, Archive, Trash2, X,
@@ -14,16 +15,52 @@ function ChatRow({ chat, active, onOpen, onRename, onArchive, onDelete }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(chat.title)
   const ref = useRef(null)
+  const btnRef = useRef(null)
+  const menuRef = useRef(null)
+  const [pos, setPos] = useState(null)
   const sp = specialists.find((s) => s.id === chat.specialist)
   const saved = !!chat.serverId
+  const closeMenu = () => { setMenu(false); setConfirmDelete(false) }
+
+  // The menu renders in a portal on <body>, placed next to the ⋯ button.
+  // It opens upward when there isn't room below, so it is never cut off.
+  useLayoutEffect(() => {
+    if (!menu) return
+    const place = () => {
+      const b = btnRef.current?.getBoundingClientRect()
+      const m = menuRef.current
+      if (!b || !m) return
+      const h = m.offsetHeight
+      const w = m.offsetWidth
+      const below = window.innerHeight - b.bottom
+      const top = below >= h + 12 ? b.bottom + 4 : Math.max(8, b.top - h - 4)
+      const left = Math.min(Math.max(8, b.right - w), window.innerWidth - w - 8)
+      setPos({ top, left })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [menu, confirmDelete])
 
   useEffect(() => {
     if (!menu) return
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) { setMenu(false); setConfirmDelete(false) } }
-    const esc = (e) => { if (e.key === 'Escape') { setMenu(false); setConfirmDelete(false) } }
-    document.addEventListener('mousedown', close)
+    const outside = (e) => {
+      if (ref.current?.contains(e.target) || menuRef.current?.contains(e.target)) return
+      closeMenu()
+    }
+    const esc = (e) => { if (e.key === 'Escape') closeMenu() }
+    // Scrolling the list would leave the menu behind, so close it.
+    const scroll = (e) => { if (!menuRef.current?.contains(e.target)) closeMenu() }
+    document.addEventListener('mousedown', outside)
+    document.addEventListener('touchstart', outside, { passive: true })
     document.addEventListener('keydown', esc)
-    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+    document.addEventListener('scroll', scroll, true)
+    return () => {
+      document.removeEventListener('mousedown', outside)
+      document.removeEventListener('touchstart', outside)
+      document.removeEventListener('keydown', esc)
+      document.removeEventListener('scroll', scroll, true)
+    }
   }, [menu])
 
   const commit = () => {
@@ -59,6 +96,7 @@ function ChatRow({ chat, active, onOpen, onRename, onArchive, onDelete }) {
         <span>{chat.title}</span>
       </button>
       <button
+        ref={btnRef}
         className="chat-more"
         title={saved ? 'Chat actions' : 'Available once the first answer is saved'}
         disabled={!saved}
@@ -66,8 +104,12 @@ function ChatRow({ chat, active, onOpen, onRename, onArchive, onDelete }) {
       >
         <MoreHorizontal size={16} />
       </button>
-      {menu && (
-        <div className="menu chat-menu">
+      {menu && createPortal(
+        <div
+          ref={menuRef}
+          className="menu chat-menu"
+          style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden', top: 0, left: 0 }}
+        >
           <button className="menu-item" onClick={() => { setMenu(false); setDraft(chat.title); setEditing(true) }}>
             <Pencil size={15} /><span className="menu-grow">Rename</span>
           </button>
@@ -88,7 +130,8 @@ function ChatRow({ chat, active, onOpen, onRename, onArchive, onDelete }) {
               <Trash2 size={15} /><span className="menu-grow">Delete</span>
             </button>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

@@ -133,7 +133,7 @@ a { color: inherit; }
 .chat-row:hover .chat-more, .chat-row.menu-open .chat-more, .chat-row.active .chat-more, .chat-more:focus-visible { opacity: 1; }
 .chat-more:hover, .chat-row.menu-open .chat-more { background: rgba(23, 24, 27, .07); color: var(--text); }
 .chat-more:disabled { opacity: 0 !important; cursor: default; }
-.chat-menu { top: calc(100% + 2px); left: auto; right: 0; min-width: 210px; z-index: 40; }
+.chat-menu { position: fixed; right: auto; bottom: auto; min-width: 210px; z-index: 80; }
 .chat-menu .menu-item { justify-content: flex-start; padding: 8px 10px; font-size: 13.5px; }
 .menu-sep { height: 1px; background: var(--line-2); margin: 4px 2px; }
 .menu-confirm { padding: 8px 10px 6px; }
@@ -905,3 +905,46 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 .sk-main .home { justify-content: center; }
 @media (max-width: 900px) { .sk-shell .sk-side { display: none; } }
 @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
+
+/* ---------- inputs: clean, white, lifted (no dark outlines, no frost) ---------- */
+:root {
+  --field-shadow: 0 0 0 1px rgba(23, 24, 27, .045), 0 1px 2px rgba(20, 24, 34, .06), 0 4px 14px -6px rgba(20, 24, 34, .14);
+  --field-shadow-hover: 0 0 0 1px rgba(23, 24, 27, .07), 0 1px 2px rgba(20, 24, 34, .07), 0 6px 18px -6px rgba(20, 24, 34, .18);
+  --field-shadow-focus: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent), 0 6px 18px -6px rgba(20, 24, 34, .16);
+}
+.input, .field input:not([type=checkbox]):not([type=radio]), .field textarea, .field select,
+.select-btn, .link-form input, .search-box, .side-search, .input-icon, .otp input, .chat-rename {
+  background: #fff;
+  border: 1px solid transparent;
+  box-shadow: var(--field-shadow);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  transition: box-shadow .12s, background .12s;
+}
+.input:hover, .field input:not([type=checkbox]):not([type=radio]):hover, .field textarea:hover,
+.select-btn:hover, .link-form input:hover, .search-box:hover, .side-search:hover, .input-icon:hover, .otp input:hover {
+  border-color: transparent; box-shadow: var(--field-shadow-hover);
+}
+.input:focus, .field input:not([type=checkbox]):not([type=radio]):focus, .field textarea:focus,
+.select-btn:focus-visible, .select.open .select-btn, .link-form input:focus, .search-box:focus-within,
+.side-search:focus-within, .input-icon:focus-within, .otp input:focus, .chat-rename {
+  border-color: transparent; box-shadow: var(--field-shadow-focus);
+}
+.select.invalid .select-btn { box-shadow: 0 0 0 1px var(--bad), var(--field-shadow); }
+.link-form input, .search-box, .side-search { border-radius: 8px; }
+.side-search { color: var(--muted); }
+
+/* the message box: solid white card, lifted */
+.composer {
+  background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none;
+  border: 1px solid transparent;
+  box-shadow: 0 0 0 1px rgba(23, 24, 27, .05), 0 2px 4px rgba(20, 24, 34, .04), 0 14px 34px -14px rgba(20, 24, 34, .22);
+}
+.composer:focus-within {
+  box-shadow: 0 0 0 1px rgba(23, 24, 27, .07), 0 2px 4px rgba(20, 24, 34, .05), 0 18px 40px -14px rgba(20, 24, 34, .28);
+}
+
+/* long titles and URLs truncate instead of running under the status */
+.doc-cell { overflow: hidden; }
+.doc-cell > span { min-width: 0; flex: 1; }
+.doc-cell > span > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.doc-cell > svg { flex: none; }
