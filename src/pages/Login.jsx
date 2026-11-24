@@ -1,21 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
-import { Lock, Mail, ArrowLeft, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Lock, Mail, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
 import Orb from '../components/Orb.jsx'
+import * as api from '../lib/api.js'
 
-// Mirrors the admin dashboard's two-step sign-in:
+// The admin dashboard's two-step sign-in:
 //   POST /admin/auth/login      { email, password }  -> { otp_token }
-//   POST /admin/auth/verify-otp { otp_token, code }  -> admin token
+//   POST /admin/auth/verify-otp { otp_token, code }  -> admin token (used once)
 //   POST /brain/auth/session    (admin token)        -> Brain session
-// Mock: any email + password, any 6 digits.
-export default function Login({ onSignedIn }) {
+export default function Login({ onSignedIn, reason }) {
   const [step, setStep] = useState('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(reason || '')
   const [cooldown, setCooldown] = useState(0)
+  const [otpToken, setOtpToken] = useState(null)
   const boxes = useRef([])
 
   useEffect(() => {
@@ -24,26 +25,51 @@ export default function Login({ onSignedIn }) {
     return () => clearTimeout(t)
   }, [cooldown])
 
-  const submitPassword = (e) => {
+  const submitPassword = async (e) => {
     e.preventDefault()
     setError('')
     if (!email || !password) return setError('Enter your admin email and password.')
     setBusy(true)
-    setTimeout(() => {
-      setBusy(false)
+    try {
+      const challenge = await api.login(email.trim(), password)
+      setOtpToken(challenge.otp_token)
+      setPassword('')
       setStep('otp')
       setCooldown(30)
       setTimeout(() => boxes.current[0]?.focus(), 50)
-    }, 800)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const verify = (digits) => {
+  const verify = async (digits) => {
+    if (busy) return
+    if (digits.length !== 6) return setError('Enter the 6-digit code.')
+    setError('')
     setBusy(true)
-    setTimeout(() => {
+    try {
+      const session = await api.verifyCode(otpToken, digits)
+      onSignedIn(session.user)
+    } catch (err) {
+      setError(err.message)
+      setCode(['', '', '', '', '', ''])
+      setTimeout(() => boxes.current[0]?.focus(), 50)
+    } finally {
       setBusy(false)
-      if (digits.length !== 6) return setError('Enter the 6-digit code.')
-      onSignedIn({ email })
-    }, 900)
+    }
+  }
+
+  const resend = async () => {
+    setError('')
+    try {
+      const r = await api.resendCode(otpToken)
+      if (r?.otp_token) setOtpToken(r.otp_token)
+      setCooldown(30)
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const setDigit = (i, v) => {
@@ -89,9 +115,9 @@ export default function Login({ onSignedIn }) {
           </form>
         ) : (
           <div>
-            <button className="link-btn" onClick={() => { setStep('password'); setCode(['', '', '', '', '', '']); setError('') }}><ArrowLeft size={15} /> Back</button>
+            <button className="link-btn" onClick={() => { setStep('password'); setCode(['', '', '', '', '', '']); setError(''); setOtpToken(null) }}><ArrowLeft size={15} /> Back</button>
             <h2>Enter your code</h2>
-            <p className="muted">We sent a 6-digit code to your phone and to {email}. It expires in 5 minutes.</p>
+            <p className="muted">We sent a 6-digit code to your email and, if one is verified, your phone. It expires in 5 minutes.</p>
             <div className="otp">
               {code.map((c, i) => (
                 <input
@@ -109,13 +135,12 @@ export default function Login({ onSignedIn }) {
             <button className="primary-btn block" disabled={busy} onClick={() => verify(code.join(''))}>
               {busy ? <Loader2 size={16} className="spin" /> : 'Verify and sign in'}
             </button>
-            <button className="link-btn center" disabled={cooldown > 0} onClick={() => setCooldown(30)}>
+            <button className="link-btn center" disabled={cooldown > 0} onClick={resend}>
               {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
             </button>
           </div>
         )}
 
-        <div className="login-foot"><ShieldCheck size={14} /> Same login as the Ardena admin dashboard. Every sign-in is logged.</div>
       </div>
     </div>
   )

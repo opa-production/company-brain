@@ -1,27 +1,57 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import Sidebar from './components/Sidebar.jsx'
 import Topbar from './components/Topbar.jsx'
 import VoiceMode from './components/VoiceMode.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import KnowledgeBase from './pages/KnowledgeBase.jsx'
 import Login from './pages/Login.jsx'
-import { FactsPage, HistoryPage, SettingsPage } from './pages/OtherPages.jsx'
-import { initialChats, kbGroups, specialists } from './data/mock.js'
-import { runMockTurn } from './lib/mockBrain.js'
+import { AuditPage, FactsPage, HistoryPage, SettingsPage } from './pages/OtherPages.jsx'
+import { specialists } from './config.js'
+import * as api from './lib/api.js'
+import { BrainContext, dayLabel, groupName } from './lib/brain.jsx'
 
-const SESSION_KEY = 'ardena-brain-session'
-const IDLE_MS = 30 * 60 * 1000
+const MODE_KEY = 'ardena-brain-mode'
 
 let seq = 0
 const uid = (p) => `${p}${Date.now()}${seq++}`
 
+// A chat as the sidebar holds it. `id` is local and stable; `serverId` is the
+// conversation id once the server has one. `messages` is null until opened.
+const fromSummary = (c) => ({
+  id: `c${c.id}`,
+  serverId: c.id,
+  title: c.title,
+  specialist: c.specialist,
+  updatedAt: c.last_message_at,
+  day: dayLabel(c.last_message_at),
+  messages: null,
+})
+
+const fromServerMessage = (m) =>
+  m.role === 'user'
+    ? { id: `m${m.id}`, role: 'user', content: m.content }
+    : {
+        id: `m${m.id}`,
+        serverId: m.id,
+        role: 'assistant',
+        status: 'done',
+        content: m.content,
+        steps: m.steps || [],
+        sources: m.sources || [],
+        feedback: m.feedback,
+      }
+
 export default function App() {
-  const [session, setSession] = useState(() => sessionStorage.getItem(SESSION_KEY))
+  const [authed, setAuthed] = useState(() => !!api.getToken())
+  const [me, setMe] = useState(null)
+  const [bootError, setBootError] = useState('')
+  const [signedOutReason, setSignedOutReason] = useState('')
   const [view, setView] = useState('chat')
   const [kbGroup, setKbGroup] = useState(null)
-  const [chats, setChats] = useState(initialChats)
+  const [chats, setChats] = useState([])
   const [activeChatId, setActiveChatId] = useState(null)
-  const [model, setModel] = useState('fast')
+  const [model, setModelState] = useState(() => localStorage.getItem(MODE_KEY) || 'fast')
   const [collapsed, setCollapsed] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [voiceMin, setVoiceMin] = useState(false)
@@ -29,63 +59,115 @@ export default function App() {
   const [specialist, setSpecialist] = useState(null)
   const [busy, setBusy] = useState(false)
   const cancelRef = useRef(null)
+  const chatsRef = useRef(chats)
+  chatsRef.current = chats
 
-  const logout = useCallback(() => {
+  const setModel = (m) => { setModelState(m); localStorage.setItem(MODE_KEY, m) }
+
+  const signedOut = useCallback((reason) => {
     cancelRef.current?.()
-    sessionStorage.removeItem(SESSION_KEY)
-    setSession(null)
+    cancelRef.current = null
+    setBusy(false)
+    setAuthed(false)
+    setMe(null)
+    setChats([])
+    setActiveChatId(null)
+    setVoiceOpen(false)
+    setSignedOutReason(reason || '')
   }, [])
 
-  // Idle sign-out, matching the planned 30-minute Brain session idle timeout.
+  useEffect(() => { api.setSignedOutHandler(signedOut) }, [signedOut])
+
+  const logout = useCallback(async () => {
+    try { await api.logout() } catch { /* already gone */ }
+    signedOut('')
+  }, [signedOut])
+
+  const refreshMe = useCallback(() => api.me().then(setMe), [])
+
+  // Load who I am and my chats once signed in.
   useEffect(() => {
-    if (!session) return
-    let t = setTimeout(logout, IDLE_MS)
-    const reset = () => { clearTimeout(t); t = setTimeout(logout, IDLE_MS) }
+    if (!authed) return
+    setBootError('')
+    Promise.all([api.me(), api.conversations()])
+      .then(([m, list]) => {
+        setMe(m)
+        setChats(list.conversations.map(fromSummary))
+      })
+      .catch((e) => { if (e.status !== 401) setBootError(e.message) })
+  }, [authed])
+
+  // Client-side idle sign-out, matching the server's idle timeout.
+  useEffect(() => {
+    if (!authed || !me) return
+    const idleMs = 30 * 60 * 1000
+    let t = setTimeout(logout, idleMs)
+    const reset = () => { clearTimeout(t); t = setTimeout(logout, idleMs) }
     const evs = ['mousemove', 'keydown', 'click', 'scroll']
     evs.forEach((e) => window.addEventListener(e, reset, { passive: true }))
     return () => { clearTimeout(t); evs.forEach((e) => window.removeEventListener(e, reset)) }
-  }, [session, logout])
+  }, [authed, me, logout])
 
+  const patchChat = (chatId, fn) => setChats((cs) => cs.map((c) => (c.id === chatId ? fn(c) : c)))
   const patchMsg = (chatId, msgId, fn) =>
-    setChats((cs) => cs.map((c) => (c.id !== chatId ? c : { ...c, messages: c.messages.map((m) => (m.id === msgId ? fn(m) : m)) })))
+    patchChat(chatId, (c) => ({ ...c, messages: (c.messages || []).map((m) => (m.id === msgId ? fn(m) : m)) }))
 
-  const startTurn = (chatId, prompt, sp) => {
+  const startTurn = (chatId, prompt, { onAnswer } = {}) => {
+    const chat = chatsRef.current.find((c) => c.id === chatId)
     const aId = uid('a')
-    setChats((cs) =>
-      cs.map((c) =>
-        c.id !== chatId
-          ? c
-          : { ...c, messages: [...c.messages, { id: aId, role: 'assistant', status: 'working', steps: [], content: '', sources: [], startedAt: Date.now() }] },
-      ),
-    )
+    patchChat(chatId, (c) => ({
+      ...c,
+      messages: [...(c.messages || []), { id: aId, role: 'assistant', status: 'working', steps: [], content: '', sources: [], startedAt: Date.now() }],
+    }))
     setBusy(true)
-    cancelRef.current = runMockTurn(prompt, {
-      onStep: (label) => patchMsg(chatId, aId, (m) => ({ ...m, steps: [...m.steps, label] })),
-      onSources: (sources) => patchMsg(chatId, aId, (m) => ({ ...m, sources, status: 'streaming', finishedAt: Date.now() })),
-      onToken: (tok) => patchMsg(chatId, aId, (m) => ({ ...m, content: m.content + tok })),
-      onDone: () => {
-        patchMsg(chatId, aId, (m) => ({ ...m, status: 'done' }))
-        setBusy(false)
-        cancelRef.current = null
+    let answer = ''
+    const finish = () => { setBusy(false); cancelRef.current = null }
+
+    cancelRef.current = api.streamChat(
+      { message: prompt, conversationId: chat?.serverId, specialist: chat?.specialist, mode: model },
+      {
+        onMeta: (meta) => patchChat(chatId, (c) => ({
+          ...c, serverId: meta.conversation_id, title: c.serverId ? c.title : meta.title, updatedAt: new Date().toISOString(), day: 'Today',
+        })),
+        onStep: (label) => patchMsg(chatId, aId, (m) => ({ ...m, steps: m.steps.at(-1) === label ? m.steps : [...m.steps, label] })),
+        onSources: (sources) => patchMsg(chatId, aId, (m) => ({ ...m, sources })),
+        onToken: (tok) => {
+          answer += tok
+          patchMsg(chatId, aId, (m) => ({ ...m, status: 'streaming', content: m.content + tok, finishedAt: m.finishedAt || Date.now() }))
+        },
+        onDone: (d) => {
+          patchMsg(chatId, aId, (m) => ({
+            ...m, status: 'done', serverId: d.message_id, steps: d.steps?.length ? d.steps : m.steps,
+            sources: d.sources || m.sources, outOfScope: d.out_of_scope, finishedAt: m.finishedAt || Date.now(),
+          }))
+          finish()
+          onAnswer?.(answer)
+        },
+        onError: (e) => {
+          patchMsg(chatId, aId, (m) => ({ ...m, status: 'error', error: e.detail, finishedAt: Date.now() }))
+          finish()
+          onAnswer?.('')
+        },
       },
-    }, { specialist: sp, mode: model })
+    )
   }
 
-  const send = (text) => {
-    let chatId = view === 'chat' ? activeChatId : null
+  const send = (text, opts = {}) => {
+    let chatId = view === 'chat' && !opts.fresh ? activeChatId : null
     const userMsg = { id: uid('u'), role: 'user', content: text }
-    let sp = chats.find((c) => c.id === chatId)?.specialist ?? null
     if (!chatId) {
-      chatId = uid('c')
-      sp = specialist
-      const title = text.length > 38 ? text.slice(0, 38) + '…' : text
-      setChats((cs) => [{ id: chatId, title, day: 'Today', specialist: sp, messages: [userMsg] }, ...cs])
+      chatId = uid('new')
+      const title = text.length > 60 ? text.slice(0, 59) + '…' : text
+      const chat = { id: chatId, serverId: null, title, specialist: opts.fresh ? null : specialist, day: 'Today', updatedAt: new Date().toISOString(), messages: [userMsg] }
+      chatsRef.current = [chat, ...chatsRef.current]
+      setChats((cs) => [chat, ...cs])
       setActiveChatId(chatId)
       setView('chat')
     } else {
-      setChats((cs) => cs.map((c) => (c.id === chatId ? { ...c, messages: [...c.messages, userMsg] } : c)))
+      chatsRef.current = chatsRef.current.map((c) => (c.id === chatId ? { ...c, messages: [...(c.messages || []), userMsg] } : c))
+      patchChat(chatId, (c) => ({ ...c, messages: [...(c.messages || []), userMsg] }))
     }
-    startTurn(chatId, text, sp)
+    startTurn(chatId, text, opts)
   }
 
   const stop = () => {
@@ -95,7 +177,7 @@ export default function App() {
     setChats((cs) =>
       cs.map((c) => ({
         ...c,
-        messages: c.messages.map((m) =>
+        messages: c.messages && c.messages.map((m) =>
           m.status === 'working' || m.status === 'streaming' ? { ...m, status: 'stopped', finishedAt: m.finishedAt || Date.now() } : m,
         ),
       })),
@@ -108,8 +190,16 @@ export default function App() {
     const idx = chat.messages.findIndex((m) => m.id === assistantId)
     const prompt = [...chat.messages.slice(0, idx)].reverse().find((m) => m.role === 'user')?.content
     if (!prompt) return
-    setChats((cs) => cs.map((c) => (c.id === chat.id ? { ...c, messages: c.messages.filter((m) => m.id !== assistantId) } : c)))
-    startTurn(chat.id, prompt, chat.specialist)
+    patchChat(chat.id, (c) => ({ ...c, messages: c.messages.filter((m) => m.id !== assistantId) }))
+    chatsRef.current = chatsRef.current.map((c) => (c.id === chat.id ? { ...c, messages: c.messages.filter((m) => m.id !== assistantId) } : c))
+    startTurn(chat.id, prompt)
+  }
+
+  const rate = (msg, value) => {
+    if (!msg.serverId) return
+    const chat = chats.find((c) => c.id === activeChatId)
+    patchMsg(chat.id, msg.id, (m) => ({ ...m, feedback: value || null }))
+    api.feedback(msg.serverId, value).catch(() => {})
   }
 
   // Sidebar navigation tucks an open voice session into a mini bar instead of ending it.
@@ -123,32 +213,52 @@ export default function App() {
     setView('chat')
   }
 
-  const openChat = (id) => {
+  const openChat = async (id) => {
     if (busy) stop()
-    const c = chats.find((x) => x.id === id)
     if (voiceOpen) setVoiceMin(true)
     setActiveChatId(id)
     setView('chat')
-    // Seeded history entries have no messages yet: replay their title as the question.
-    if (c && c.messages.length === 0) {
-      const userMsg = { id: uid('u'), role: 'user', content: c.title }
-      setChats((cs) => cs.map((x) => (x.id === id ? { ...x, messages: [userMsg] } : x)))
-      startTurn(id, c.title, c.specialist)
+    const c = chatsRef.current.find((x) => x.id === id)
+    if (c && c.messages === null && c.serverId) {
+      try {
+        const full = await api.conversation(c.serverId)
+        patchChat(id, (x) => ({ ...x, messages: full.messages.map(fromServerMessage) }))
+      } catch (e) {
+        if (e.status === 404) setChats((cs) => cs.filter((x) => x.id !== id))
+      }
     }
   }
 
+  const removeChat = async (id) => {
+    const c = chats.find((x) => x.id === id)
+    if (!c) return
+    if (activeChatId === id) newChat(null)
+    setChats((cs) => cs.filter((x) => x.id !== id))
+    if (c.serverId) api.deleteConversation(c.serverId).catch(() => {})
+  }
+
+  // Voice: send the transcript as a normal turn and hand back the answer to speak.
   const sendRef = useRef(send)
   sendRef.current = send
-  const onVoiceTranscript = useCallback((t) => sendRef.current(t), [])
+  const askByVoice = useCallback((text) => new Promise((resolve) => sendRef.current(text, { onAnswer: resolve })), [])
 
-  if (!session) {
+  const ctx = useMemo(() => ({ me, groups: me?.groups || [], refreshMe }), [me, refreshMe])
+
+  if (!authed) {
+    return <Login reason={signedOutReason} onSignedIn={() => { setSignedOutReason(''); setAuthed(true) }} />
+  }
+
+  if (!me) {
     return (
-      <Login
-        onSignedIn={({ email }) => {
-          sessionStorage.setItem(SESSION_KEY, email)
-          setSession(email)
-        }}
-      />
+      <div className="boot">
+        {bootError ? (
+          <div className="boot-card">
+            <p>{bootError}</p>
+            <button className="primary-btn" onClick={() => window.location.reload()}>Try again</button>
+            <button className="link-btn center" onClick={logout}>Sign out</button>
+          </div>
+        ) : <Loader2 size={22} className="spin" />}
+      </div>
     )
   }
 
@@ -156,66 +266,72 @@ export default function App() {
   const activeSpecialist = specialists.find((x) => x.id === (activeChat ? activeChat.specialist : specialist)) || null
   const openVoice = () => { setVoiceOpen(true); setVoiceMin(false) }
   const titles = {
-    kb: kbGroup === 'all' ? 'Knowledge base / All' : kbGroup ? `Knowledge base / ${kbGroups.find((g) => g.id === kbGroup)?.name}` : 'Knowledge base',
+    kb: kbGroup === 'all' ? 'Knowledge base / All' : kbGroup ? `Knowledge base / ${groupName(ctx.groups, kbGroup)}` : 'Knowledge base',
     facts: 'Company facts',
     history: 'History',
     settings: 'Settings',
+    audit: 'Audit log',
   }
 
   return (
-    <div className="app">
-      <div className={`shell ${collapsed ? 'is-collapsed' : ''}`}>
-        <Sidebar
-          view={view}
-          setView={go}
-          specialist={activeChat ? activeChat.specialist : specialist}
-          onSpecialist={(id) => newChat(id)}
-          kbGroup={kbGroup}
-          setKbGroup={setKbGroup}
-          chats={chats}
-          activeChatId={activeChatId}
-          openChat={openChat}
-          newChat={newChat}
-          collapsed={collapsed}
-          setCollapsed={setCollapsed}
-        />
-        <main className="main">
-          <Topbar
-            title={view === 'chat' ? null : titles[view]}
-            specialist={view === 'chat' ? activeSpecialist : null}
-            onClearSpecialist={() => newChat(null)}
-            onProfile={() => go('settings')}
+    <BrainContext.Provider value={ctx}>
+      <div className="app">
+        <div className={`shell ${collapsed ? 'is-collapsed' : ''}`}>
+          <Sidebar
+            view={view}
+            setView={go}
+            specialist={activeChat ? activeChat.specialist : specialist}
+            onSpecialist={(id) => newChat(id)}
+            kbGroup={kbGroup}
+            setKbGroup={setKbGroup}
+            chats={chats}
+            activeChatId={activeChatId}
+            openChat={openChat}
+            newChat={newChat}
+            collapsed={collapsed}
+            setCollapsed={setCollapsed}
           />
-          <div className="main-body">
-            {view === 'chat' && (
-              <ChatPage
-                chat={activeChat}
+          <main className="main">
+            <Topbar
+              title={view === 'chat' ? null : titles[view]}
+              specialist={view === 'chat' ? activeSpecialist : null}
+              onClearSpecialist={() => newChat(null)}
+              onProfile={() => go('settings')}
+            />
+            <div className="main-body">
+              {view === 'chat' && (
+                <ChatPage
+                  chat={activeChat}
+                  specialist={activeSpecialist}
+                  onSend={send}
+                  onStop={stop}
+                  busy={busy}
+                  onVoice={openVoice}
+                  onRetry={retry}
+                  onRate={rate}
+                  model={model}
+                  setModel={setModel}
+                />
+              )}
+              {view === 'kb' && <KnowledgeBase group={kbGroup} setGroup={setKbGroup} onAsk={(t) => send(t, { fresh: true })} />}
+              {view === 'facts' && <FactsPage />}
+              {view === 'history' && <HistoryPage chats={chats} openChat={openChat} removeChat={removeChat} />}
+              {view === 'settings' && <SettingsPage onLogout={logout} onLoggedOutEverywhere={() => signedOut('')} model={model} setModel={setModel} onAudit={() => go('audit')} />}
+              {view === 'audit' && <AuditPage />}
+            </div>
+            {voiceOpen && (
+              <VoiceMode
+                minimized={voiceMin}
                 specialist={activeSpecialist}
-                onSend={send}
-                onStop={stop}
-                busy={busy}
-                onVoice={openVoice}
-                onRetry={retry}
-                model={model}
-                setModel={setModel}
+                enabled={me.voice_enabled}
+                onExpand={() => { setVoiceMin(false); setView('chat') }}
+                onClose={() => { setVoiceOpen(false); setVoiceMin(false) }}
+                ask={askByVoice}
               />
             )}
-            {view === 'kb' && <KnowledgeBase group={kbGroup} setGroup={setKbGroup} onAsk={send} />}
-            {view === 'facts' && <FactsPage />}
-            {view === 'history' && <HistoryPage chats={chats} openChat={openChat} />}
-            {view === 'settings' && <SettingsPage onLogout={logout} model={model} setModel={setModel} />}
-          </div>
-          {voiceOpen && (
-            <VoiceMode
-              minimized={voiceMin}
-              specialist={activeSpecialist}
-              onExpand={() => { setVoiceMin(false); setView('chat') }}
-              onClose={() => { setVoiceOpen(false); setVoiceMin(false) }}
-              onTranscript={onVoiceTranscript}
-            />
-          )}
-        </main>
+          </main>
+        </div>
       </div>
-    </div>
+    </BrainContext.Provider>
   )
 }

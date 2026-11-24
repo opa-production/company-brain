@@ -30,8 +30,8 @@ and the deploy pipeline. There is nothing new to host apart from the static UI.
   - 8-hour lifetime and 30-minute idle timeout;
   - tied to the IP and user agent it was issued for;
   - revocable: a `brain_sessions` row that is checked on every request.
-- **Access:** a `brain_access` flag on the admin (off by default) and an
-  optional allow-list of roles. Being an admin doesn't automatically mean Brain access.
+- **Access:** every active Ardena admin can use Brain (decided 2026-11-24).
+  What each can read is limited per knowledge group by role.
 - **Per-group permissions:** every knowledge group has the roles allowed to
   read it (for example, Finance & tax is for super, general and finance admins only). Retrieval
   filters by this **before** anything reaches the model, so the AI can't leak
@@ -149,5 +149,5 @@ by embeddings alone.
 ## Decisions needed from you
 
 - **LLM provider for the Brain.** A paid model with no training on our data is needed before real documents go in.
-- **Who gets access:** all admins, or only the people you switch on (recommended).
+- **Who gets access:** all active admins (decided).
 - **Which roles can read each group,** especially Finance & tax and Legal.

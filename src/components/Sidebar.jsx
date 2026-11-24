@@ -3,12 +3,14 @@ import {
   Search, PanelLeft, SquarePen, BookOpen, KeyRound, History, Settings, ChevronDown, ChevronRight, ArrowRight,
 } from 'lucide-react'
 import { Icon } from './Icon.jsx'
-import { kbGroups, specialists } from '../data/mock.js'
+import { specialists } from '../config.js'
+import { useBrain } from '../lib/brain.jsx'
 
 export default function Sidebar({
   view, setView, kbGroup, setKbGroup, chats, activeChatId, openChat, newChat,
   collapsed, setCollapsed, specialist, onSpecialist,
 }) {
+  const { groups: kbGroups } = useBrain()
   const [kbOpen, setKbOpen] = useState(true)
   const [searching, setSearching] = useState(false)
   const [q, setQ] = useState('')
@@ -95,9 +97,9 @@ export default function Sidebar({
             <div className="sub-nav">
               {kbGroups.map((g) => (
                 <button
-                  key={g.id}
-                  className={`sub-item ${view === 'kb' && kbGroup === g.id ? 'active' : ''}`}
-                  onClick={() => { setKbGroup(g.id); setView('kb') }}
+                  key={g.key}
+                  className={`sub-item ${view === 'kb' && kbGroup === g.key ? 'active' : ''}`}
+                  onClick={() => { setKbGroup(g.key); setView('kb') }}
                 >
                   <Icon name={g.icon} size={15} />
                   <span>{g.name}</span>

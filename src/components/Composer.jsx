@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Paperclip, AudioLines, ArrowUp, Square, X, ChevronDown, Check } from 'lucide-react'
 import { FileBadge, Icon } from './Icon.jsx'
-import { models } from '../data/mock.js'
+import { models } from '../config.js'
 
 const ext = (n) => (n.includes('.') ? n.split('.').pop() : 'file')
 const kb = (b) => (b > 1024 * 1024 ? `${(b / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`)

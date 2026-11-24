@@ -1,5 +1,5 @@
-// Client for the Ardena Brain API (opabackend, /api/v1/brain). Drop-in for the
-// mock layer: pages call these instead of src/data/mock.js and mockBrain.js.
+// Client for the Ardena Brain API (opabackend, /api/v1/brain): the only way
+// pages talk to the backend.
 //
 // Base URL comes from VITE_API_BASE_URL, e.g.
 //   VITE_API_BASE_URL=https://testing.ardena.xyz/api/v1   (staging)
@@ -134,7 +134,7 @@ export const deleteConversation = (id) => request(`/brain/conversations/${id}`, 
 export const feedback = (messageId, value) => request(`/brain/messages/${messageId}/feedback`, { method: 'POST', body: { value } })
 
 /**
- * Ask Brain. Same callbacks as the mock's runMockTurn, plus onMeta/onError:
+ * Ask Brain. Streams the answer as server-sent events:
  *   onMeta({conversation_id, title, specialist})  first
  *   onStep(label)                                 "Thinking", "Searching Finance & tax", "Reading …", "Writing"
  *   onSources(sources)                            cumulative [{document_id, title, group_name, where}]
@@ -217,6 +217,4 @@ export async function speak(text) {
 
 // ---------------------------------------------------------------- super admin
 
-export const accessList = () => request('/brain/access')
-export const setAccess = (adminId, enabled) => request(`/brain/access/${adminId}`, { method: 'PUT', body: { enabled } })
 export const auditLog = (params = {}) => request(`/brain/audit?${new URLSearchParams(params)}`)

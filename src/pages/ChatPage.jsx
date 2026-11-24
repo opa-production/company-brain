@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Loader2 } from 'lucide-react'
 import Composer from '../components/Composer.jsx'
 import Orb from '../components/Orb.jsx'
 import { Icon } from '../components/Icon.jsx'
 import { Markdown } from '../lib/markdown.jsx'
-import { suggestions } from '../data/mock.js'
+import { suggestions } from '../config.js'
 
 function Working({ label }) {
   return (
@@ -18,12 +18,13 @@ function Working({ label }) {
 function ThoughtFor({ msg }) {
   const [open, setOpen] = useState(false)
   if (!msg.steps?.length) return null
-  const secs = Math.max(1, Math.round((msg.finishedAt - msg.startedAt) / 1000))
+  // Live answers know how long they took; ones loaded from history don't.
+  const secs = msg.startedAt && msg.finishedAt ? Math.max(1, Math.round((msg.finishedAt - msg.startedAt) / 1000)) : null
   return (
     <div className="thought">
       <button className="thought-btn" onClick={() => setOpen(!open)}>
         {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        {msg.status === 'stopped' ? 'Stopped' : `Thought for ${secs}s`}
+        {msg.status === 'stopped' ? 'Stopped' : secs ? `Thought for ${secs}s` : `${msg.steps.length} step${msg.steps.length === 1 ? '' : 's'}`}
       </button>
       {open && (
         <ol className="thought-steps">
@@ -34,10 +35,11 @@ function ThoughtFor({ msg }) {
   )
 }
 
-function AssistantMessage({ msg, onRetry }) {
+function AssistantMessage({ msg, onRetry, onRate }) {
   const [copied, setCopied] = useState(false)
-  const [vote, setVote] = useState(null)
+  const vote = msg.feedback === 1 ? 'up' : msg.feedback === -1 ? 'down' : null
   const working = msg.status === 'working'
+  const failed = msg.status === 'error'
   const done = msg.status === 'done' || msg.status === 'stopped'
 
   return (
@@ -47,11 +49,20 @@ function AssistantMessage({ msg, onRetry }) {
         {!working && <ThoughtFor msg={msg} />}
         {working && <Working label={msg.steps[msg.steps.length - 1] || 'Thinking'} />}
         {msg.content && <Markdown text={msg.content} />}
+        {failed && (
+          <div className="msg-error">
+            {msg.error || 'Brain could not answer that.'}
+            <button className="link-btn" onClick={onRetry}><RotateCcw size={13} /> Try again</button>
+          </div>
+        )}
+        {done && msg.outOfScope?.length > 0 && (
+          <div className="msg-note">Part of this is outside what your role can see.</div>
+        )}
         {msg.status === 'streaming' && <span className="caret-blink" />}
         {done && msg.sources?.length > 0 && (
           <div className="sources">
             {msg.sources.map((s, i) => (
-              <span key={i} className="source-chip" title={`${s.group} · ${s.where}`}>
+              <span key={i} className="source-chip" title={`${s.group_name || s.group} · ${s.where}`}>
                 <FileText size={13} /> {s.title} <span className="muted">· {s.where}</span>
               </span>
             ))}
@@ -70,8 +81,10 @@ function AssistantMessage({ msg, onRetry }) {
             >
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
-            <button className={`icon-btn sm ${vote === 'up' ? 'on' : ''}`} onClick={() => setVote('up')} title="Good answer"><ThumbsUp size={15} /></button>
-            <button className={`icon-btn sm ${vote === 'down' ? 'on' : ''}`} onClick={() => setVote('down')} title="Bad answer"><ThumbsDown size={15} /></button>
+            {msg.serverId && <>
+              <button className={`icon-btn sm ${vote === 'up' ? 'on' : ''}`} onClick={() => onRate(msg, vote === 'up' ? 0 : 1)} title="Good answer"><ThumbsUp size={15} /></button>
+              <button className={`icon-btn sm ${vote === 'down' ? 'on' : ''}`} onClick={() => onRate(msg, vote === 'down' ? 0 : -1)} title="Bad answer"><ThumbsDown size={15} /></button>
+            </>}
             <button className="icon-btn sm" onClick={onRetry} title="Retry"><RotateCcw size={15} /></button>
           </div>
         )}
@@ -80,7 +93,7 @@ function AssistantMessage({ msg, onRetry }) {
   )
 }
 
-export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoice, onRetry, model, setModel }) {
+export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoice, onRetry, onRate, model, setModel }) {
   const scroller = useRef(null)
   const messages = chat?.messages || []
   const last = messages[messages.length - 1]
@@ -89,6 +102,10 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
     const el = scroller.current
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, last?.content, last?.steps?.length])
+
+  if (chat && chat.messages === null) {
+    return <div className="chat-loading"><Loader2 size={20} className="spin" /></div>
+  }
 
   if (!messages.length) {
     return (
@@ -133,7 +150,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
             m.role === 'user' ? (
               <div key={m.id} className="msg user"><div className="bubble">{m.content}</div></div>
             ) : (
-              <AssistantMessage key={m.id} msg={m} onRetry={() => onRetry(m.id)} />
+              <AssistantMessage key={m.id} msg={m} onRetry={() => onRetry(m.id)} onRate={onRate} />
             ),
           )}
         </div>
