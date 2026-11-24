@@ -70,5 +70,19 @@ export const ROLE_LABELS = {
 
 // localStorage key: whether voice mode reads answers aloud.
 export const SPEAK_KEY = 'ardena-brain-speak'
-// localStorage key: which of the API's voices this person picked.
+// localStorage key: which voice this person picked.
 export const VOICE_KEY = 'ardena-brain-voice'
+
+// The voices Brain can speak with (ElevenLabs premade voices). The list and
+// the samples live in the UI: Settings plays public/voices/<key>.mp3, so
+// hearing a voice never calls the backend or ElevenLabs. Only the chosen `key`
+// is sent with /brain/voice/speak. Keep the keys in step with opabackend
+// app/brain/voices.py, and regenerate samples with scripts/make-voice-samples.mjs.
+export const VOICES = [
+  { key: 'sarah', name: 'Sarah', gender: 'female', style: 'Warm and reassuring', voiceId: 'EXAVITQu4vr4xnSDxMaL' },
+  { key: 'jessica', name: 'Jessica', gender: 'female', style: 'Bright and conversational', voiceId: 'cgSgspJ2msm6clMCkdW9' },
+  { key: 'lily', name: 'Lily', gender: 'female', style: 'Calm and clear', voiceId: 'pFZP5JQG7iQjIQuC4Bku' },
+  { key: 'brian', name: 'Brian', gender: 'male', style: 'Deep and steady', voiceId: 'nPczCjzI2devNBz1zQrb' },
+  { key: 'george', name: 'George', gender: 'male', style: 'Warm storyteller', voiceId: 'JBFqnCBsd6RMkjVDRZzb' },
+]
+export const DEFAULT_VOICE = 'sarah'

@@ -3,7 +3,7 @@ import {
   Copy, Check, Eye, EyeOff, Lock, FileText, MessageSquare, Shield, AudioLines, UserRound, ShieldCheck, LogOut,
   SlidersHorizontal, Plus, Pencil, Trash2, Loader2, ScrollText, Play, Square, Archive, ArchiveRestore,
 } from 'lucide-react'
-import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY } from '../config.js'
+import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY, VOICES, DEFAULT_VOICE } from '../config.js'
 import * as api from '../lib/api.js'
 import { useBrain, dayLabel } from '../lib/brain.jsx'
 
@@ -264,7 +264,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
   const user = me.user
   const [speakAnswers, setSpeakAnswers] = useState(() => localStorage.getItem(SPEAK_KEY) !== 'off')
   const [busy, setBusy] = useState(false)
-  const [voice, setVoice] = useState(() => localStorage.getItem(VOICE_KEY) || me.default_voice)
+  const [voice, setVoice] = useState(() => localStorage.getItem(VOICE_KEY) || me.default_voice || DEFAULT_VOICE)
   const [previewing, setPreviewing] = useState(null)
 
   // Samples are static files shipped with the UI (public/voices/<key>.mp3),
@@ -346,7 +346,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
               {['female', 'male'].map((gender) => (
                 <div className="field" key={gender}>{gender === 'female' ? "Women's voices" : "Men's voices"}
                   <div className="voice-grid">
-                    {me.voices.filter((v) => v.gender === gender).map((v) => (
+                    {VOICES.filter((v) => v.gender === gender).map((v) => (
                       <div key={v.key} className={`voice-opt ${voice === v.key ? 'on' : ''}`} onClick={() => pickVoice(v.key)} role="radio" aria-checked={voice === v.key}>
                         <span className="voice-name">
                           {v.name}{voice === v.key && <Check size={13} />}
