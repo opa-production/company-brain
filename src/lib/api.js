@@ -91,11 +91,30 @@ export function documents({ group, q, kind } = {}) {
   return request(`/brain/kb/documents${p.toString() ? `?${p}` : ''}`)
 }
 
-export function uploadDocument(file, group) {
+export function uploadDocument(file, group, onProgress) {
   const form = new FormData()
   form.append('file', file)
   if (group) form.append('group', group)
-  return request('/brain/kb/documents', { method: 'POST', form })
+  if (!onProgress) return request('/brain/kb/documents', { method: 'POST', form })
+
+  // XHR rather than fetch: fetch can't report upload progress.
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${BASE}/brain/kb/documents`)
+    const auth = getToken()
+    if (auth) xhr.setRequestHeader('Authorization', `Bearer ${auth}`)
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total)
+    xhr.onerror = () => reject(new ApiError(0, 'Network problem. Check your connection.'))
+    xhr.onload = () => {
+      let data = null
+      try { data = JSON.parse(xhr.responseText) } catch { /* empty body */ }
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(data)
+      const detail = typeof data?.detail === 'string' ? data.detail : data?.detail?.[0]?.msg
+      if (xhr.status === 401) { setToken(null); onSignedOut(detail) }
+      reject(new ApiError(xhr.status, detail))
+    }
+    xhr.send(form)
+  })
 }
 
 export const addLink = (url, group = 'links', title) =>

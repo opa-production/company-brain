@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Upload, Search, Trash2, ExternalLink, Plus, Lock, AlertCircle, CheckCircle2, RotateCcw, ChevronRight } from 'lucide-react'
+import { Upload, Search, Trash2, ExternalLink, Plus, Lock, AlertCircle, X, CheckCircle2, RotateCcw, ChevronRight } from 'lucide-react'
 import { Icon, FileBadge } from '../components/Icon.jsx'
 import DocViewer from '../components/DocViewer.jsx'
 import EmptyState from '../components/EmptyState.jsx'
@@ -35,7 +35,8 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
   const [drag, setDrag] = useState(false)
   const [newLink, setNewLink] = useState('')
   const [adding, setAdding] = useState(false)
-  const [uploading, setUploading] = useState(0)
+  // Files on their way up: shown at once as faint rows with a progress bar.
+  const [uploads, setUploads] = useState([])
   const input = useRef(null)
 
   const isAll = group === 'all'
@@ -72,24 +73,40 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
 
   const upsert = (doc) => setDocs((d) => [doc, ...d.filter((x) => x.id !== doc.id)])
 
-  const addFiles = async (fileList) => {
-    const target = group && !isLinks && !isAll ? group : 'company'
-    const files = [...fileList]
-    setNotice('')
-    setUploading((n) => n + files.length)
-    const problems = []
-    await Promise.all(files.map(async (f) => {
-      try {
-        upsert(await api.uploadDocument(f, target))
-      } catch (e) {
-        problems.push(`${f.name}: ${e.message}`)
-      } finally {
-        setUploading((n) => n - 1)
-      }
-    }))
-    if (problems.length) setNotice(problems.join(' '))
-    refreshMe()
+  const patchUpload = (id, patch) => setUploads((us) => us.map((u) => (u.id === id ? { ...u, ...patch } : u)))
+
+  const sendUpload = async (u) => {
+    patchUpload(u.id, { progress: 0, error: '' })
+    try {
+      const doc = await api.uploadDocument(u.file, u.group, (p) => patchUpload(u.id, { progress: p }))
+      setUploads((us) => us.filter((x) => x.id !== u.id))
+      upsert(doc)
+      refreshMe()
+    } catch (e) {
+      patchUpload(u.id, { error: e.message || 'Upload failed' })
+    }
   }
+
+  const addFiles = (fileList) => {
+    const target = group && !isLinks && !isAll ? group : 'company'
+    setNotice('')
+    const fresh = [...fileList].map((file) => {
+      const dot = file.name.lastIndexOf('.')
+      return {
+        id: `up-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        file,
+        group: target,
+        title: dot > 0 ? file.name.slice(0, dot) : file.name,
+        type: dot > 0 ? file.name.slice(dot + 1).toLowerCase() : 'file',
+        progress: 0,
+        error: '',
+      }
+    })
+    setUploads((us) => [...fresh, ...us])
+    fresh.forEach(sendUpload)
+  }
+
+  const dismissUpload = (id) => setUploads((us) => us.filter((u) => u.id !== id))
 
   const retry = async (id) => {
     try { upsert(await api.retryDocument(id)) } catch (e) { setNotice(e.message) }
@@ -129,6 +146,9 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
   const visible = files
     .filter((d) => (isAll ? filter === 'all' || d.group === filter : !group || d.group === group))
     .filter((d) => d.title.toLowerCase().includes(q.toLowerCase()))
+  const visibleUploads = uploads
+    .filter((u) => (isAll ? filter === 'all' || u.group === filter : !group || u.group === group))
+    .filter((u) => u.title.toLowerCase().includes(q.toLowerCase()))
   const openDoc = docs.find((x) => x.id === openId)
 
   return (
@@ -142,8 +162,8 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
           </p>
         </div>
         {!isLinks && (
-          <button className="primary-btn" onClick={() => input.current.click()} disabled={uploading > 0}>
-            {uploading > 0 ? <Loader size={16} tone="light" /> : <Upload size={16} />} Upload
+          <button className="primary-btn" onClick={() => input.current.click()}>
+            <Upload size={16} /> Upload
           </button>
         )}
         <input ref={input} type="file" multiple hidden accept={ACCEPT} onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
@@ -221,14 +241,14 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
             </div>
           )}
 
-          {visible.length === 0 && !q ? (
+          {visible.length === 0 && visibleUploads.length === 0 && !q ? (
             <EmptyState
               title={g ? `Nothing in ${g.name} yet` : isAll && filter !== 'all' ? 'Nothing in this group yet' : 'Your knowledge base is empty'}
               text={isAll
                 ? 'Upload documents and Brain will read them, cite them by page and answer from them.'
                 : 'Drop files in the box above. Brain reads them in about a minute, then answers from them.'}
               action={isAll && (
-                <button className="primary-btn" onClick={() => input.current.click()} disabled={uploading > 0}>
+                <button className="primary-btn" onClick={() => input.current.click()}>
                   <Upload size={16} /> Upload documents
                 </button>
               )}
@@ -237,13 +257,38 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
           <>
           <div className="table-tools">
             <div className="search-box"><Search size={15} /><input placeholder="Search documents" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-            <span className="muted small">{visible.length} documents</span>
+            <span className="muted small">{visible.length + visibleUploads.length} documents</span>
           </div>
 
           <div className="table">
             <div className="tr th"><span>Document</span>{(!group || isAll) && <span>Group</span>}<span>Updated</span><span>Status</span><span /></div>
+            {visibleUploads.map((u) => (
+              <div className={`tr uploading-row ${u.error ? 'up-failed' : ''} ${!group || isAll ? 'wide' : ''}`} key={u.id}>
+                <span className="doc-cell">
+                  <FileBadge type={u.type} />
+                  <span>
+                    <div>{u.title}</div>
+                    <div className="muted small">
+                      {formatSize(u.file.size)} · {u.error ? u.error : u.progress >= 1 ? 'Saving…' : `${Math.round(u.progress * 100)}% uploaded`}
+                    </div>
+                  </span>
+                </span>
+                {(!group || isAll) && <span className="muted">{groups.find((k) => k.key === u.group)?.name || ''}</span>}
+                <span className="muted">Just now</span>
+                <span>
+                  {u.error
+                    ? <span className="status bad"><AlertCircle size={13} /> Upload failed</span>
+                    : <span className="status busy"><Loader size={13} /> Uploading</span>}
+                </span>
+                <span className="row-actions">
+                  {u.error && <button className="icon-btn sm" title="Try again" onClick={() => sendUpload(u)}><RotateCcw size={15} /></button>}
+                  {u.error && <button className="icon-btn sm" title="Dismiss" onClick={() => dismissUpload(u.id)}><X size={15} /></button>}
+                </span>
+                {!u.error && <span className="up-bar" style={{ '--p': u.progress }} aria-hidden="true" />}
+              </div>
+            ))}
             {visible.map((d) => (
-              <div className={`tr clickable ${!group || isAll ? 'wide' : ''}`} key={d.id} onClick={() => setOpenId(d.id)}>
+              <div className={`tr clickable ${pending(d) ? 'processing-row' : ''} ${!group || isAll ? 'wide' : ''}`} key={d.id} onClick={() => setOpenId(d.id)}>
                 <span className="doc-cell">
                   <FileBadge type={d.type} />
                   <span><div>{d.title}</div><div className="muted small">{formatSize(d.size_bytes)} · {d.status === 'indexed' ? `${d.chunks} passages` : d.uploaded_by || '—'}</div></span>
@@ -258,7 +303,7 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
                 </span>
               </div>
             ))}
-            {visible.length === 0 && <div className="empty">Nothing matches “{q}”.</div>}
+            {visible.length === 0 && visibleUploads.length === 0 && <div className="empty">Nothing matches “{q}”.</div>}
           </div>
           </>
           )}

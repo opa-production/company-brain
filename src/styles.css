@@ -955,3 +955,26 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 .empty-state h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
 .empty-state p { margin: 0 0 16px; max-width: 380px; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
 @media (max-width: 640px) { .empty-state { padding: 18px 8px 32px; } .empty-state img { width: min(240px, 80%); } }
+
+/* ---------- uploads: the file shows at once, faint until Brain has it ---------- */
+.table .tr.uploading-row { position: relative; overflow: hidden; animation: rise .16s ease-out; }
+.uploading-row .doc-cell, .uploading-row > .muted { opacity: .45; }
+.uploading-row .file-badge { filter: grayscale(.35); }
+.up-bar {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
+  background: var(--cta); transform-origin: left; transform: scaleX(var(--p, 0));
+  transition: transform .2s ease-out;
+}
+.up-bar::after { /* moving sheen so it reads as "working" even when progress stalls */
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .7), transparent);
+  animation: up-sheen 1.1s linear infinite;
+}
+@keyframes up-sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.uploading-row.up-failed .doc-cell { opacity: .7; }
+.uploading-row.up-failed { background: rgba(229, 50, 45, .04); }
+/* uploaded, still being read: a little faint until indexed */
+.processing-row .doc-cell { opacity: .7; }
+.processing-row .file-badge { animation: badge-pulse 1.6s ease-in-out infinite; }
+@keyframes badge-pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .up-bar::after, .processing-row .file-badge { animation: none; } }
