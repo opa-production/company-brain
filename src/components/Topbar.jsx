@@ -1,6 +1,7 @@
 import { X, Menu, SquarePen } from 'lucide-react'
 import { useBrain } from '../lib/brain.jsx'
 import { Icon } from './Icon.jsx'
+import UserAvatar from './UserAvatar.jsx'
 
 export default function Topbar({ title, specialist, onClearSpecialist, onProfile, onMenu, onNewChat }) {
   const { me } = useBrain()
@@ -21,8 +22,9 @@ export default function Topbar({ title, specialist, onClearSpecialist, onProfile
       </div>
       <div className="topbar-right">
         {onNewChat && <button className="icon-btn" onClick={onNewChat} title="New chat" aria-label="New chat"><SquarePen size={19} /></button>}
-        <button className="avatar" onClick={onProfile} title={`${currentUser.name} · Settings`}>
-          {currentUser.initials}<span className="online" />
+        <button className="avatar-btn" onClick={onProfile} title={`${currentUser.name} · Settings`} aria-label="Profile and settings">
+          <UserAvatar user={currentUser} />
+          <span className="online" />
         </button>
       </div>
     </header>

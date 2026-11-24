@@ -7,6 +7,7 @@ import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY, VOICES, DEFAULT_VOICE } from
 import * as api from '../lib/api.js'
 import { useBrain, dayLabel } from '../lib/brain.jsx'
 import Select from '../components/Select.jsx'
+import UserAvatar from '../components/UserAvatar.jsx'
 
 const EMPTY_FACT = { key: '', label: '', value: '', group: '', restricted: false, source: '' }
 
@@ -369,7 +370,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
           <section className="settings-card">
             <header className="sc-head"><span className="sc-icon"><UserRound size={15} /></span> Profile</header>
             <div className="sc-body profile-row">
-              <div className="avatar lg">{user.initials}</div>
+              <UserAvatar user={user} size="lg" />
               <div className="profile-text">
                 <div className="profile-name">{user.name}</div>
                 <div className="muted small">{user.email}</div>
@@ -377,7 +378,9 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
               <span className="role-tag"><ShieldCheck size={13} /> {ROLE_LABELS[user.role] || user.role}</span>
             </div>
             <footer className="sc-foot">
-              <span className="muted small">Same account as the Ardena admin dashboard.</span>
+              <span className="muted small credit">
+                Profile picture: <a href="https://www.flaticon.com/free-icons/animals" title="animals icons" target="_blank" rel="noreferrer">Animals icons created by Magnific - Flaticon</a>
+              </span>
               <button className="ghost-btn danger" onClick={onLogout}><LogOut size={15} /> Sign out</button>
             </footer>
           </section>

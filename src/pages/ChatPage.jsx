@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Loader2 } from 'lucide-react'
 import Composer from '../components/Composer.jsx'
 import Orb from '../components/Orb.jsx'
 import { Icon } from '../components/Icon.jsx'
 import { Markdown } from '../lib/markdown.jsx'
-import { suggestions } from '../config.js'
+import { greeting } from '../lib/greeting.js'
+import { useBrain } from '../lib/brain.jsx'
 
 function Working({ label }) {
   return (
@@ -97,6 +98,9 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
   const scroller = useRef(null)
   const messages = chat?.messages || []
   const last = messages[messages.length - 1]
+  const { me } = useBrain()
+  // A new greeting each time the home screen opens, picked for the time of day.
+  const hello = useMemo(() => greeting(me?.user?.name), [chat?.id, specialist?.id, me?.user?.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const el = scroller.current
@@ -120,24 +124,23 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
             </>
           ) : (
             <>
-              <h1>What can I help with?</h1>
-              <p className="hero-sub">Ask about Ardena: documents, facts, numbers, applications.</p>
+              <h1>{hello.title}</h1>
+              <p className="hero-sub">{hello.sub}</p>
             </>
           )}
         </div>
         <div className="home-composer">
           <Composer onSend={onSend} busy={busy} onVoice={onVoice} onStop={onStop} model={model} setModel={setModel} placeholder={specialist?.placeholder} />
-          <div className="chips" key={specialist?.id || 'general'}>
-            {(specialist?.suggestions || suggestions).map((s) => (
-              <button key={s.label} className="chip" onClick={() => onSend(s.prompt, {})}>
-                <Icon name={s.icon} size={16} /> {s.label}
-              </button>
-            ))}
-          </div>
+          {specialist?.suggestions && (
+            <div className="chips" key={specialist.id}>
+              {specialist.suggestions.map((s) => (
+                <button key={s.label} className="chip" onClick={() => onSend(s.prompt, {})}>
+                  <Icon name={s.icon} size={16} /> {s.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <footer className="legal">
-          Brain can be wrong. Check important facts against the cited source. Access is logged.
-        </footer>
       </div>
     )
   }
