@@ -945,9 +945,9 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 
 /* long titles and URLs truncate instead of running under the status */
 .doc-cell { overflow: hidden; }
-.doc-cell > span { min-width: 0; flex: 1; }
+.doc-cell > span:not(.file-badge):not(.sk) { min-width: 0; flex: 1; }
 .doc-cell > span > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.doc-cell > svg { flex: none; }
+.doc-cell > svg, .doc-cell > .file-badge { flex: none; }
 
 /* ---------- empty state ---------- */
 .empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 28px 20px 40px; animation: rise .2s ease-out; }
