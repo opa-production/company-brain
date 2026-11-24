@@ -302,90 +302,127 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
     onLoggedOutEverywhere()
   }
 
+  const voiceRow = (v) => {
+    const on = voice === v.key
+    const playing = previewing === v.key
+    return (
+      <div
+        key={v.key}
+        className={`voice-row ${on ? 'on' : ''} ${playing ? 'playing' : ''}`}
+        onClick={() => pickVoice(v.key)}
+        role="radio"
+        aria-checked={on}
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pickVoice(v.key) } }}
+      >
+        <span className="voice-avatar">
+          <img src={`/voices/avatars/${v.key}.svg`} alt="" draggable="false" />
+          {on && <span className="voice-check"><Check size={11} strokeWidth={3} /></span>}
+        </span>
+        <span className="voice-who">
+          <span className="voice-name">{v.name}</span>
+          <span className="voice-sub">{noSample === v.key ? 'Sample not available' : playing ? 'Playing sample…' : on ? 'Your voice' : 'Tap to choose'}</span>
+        </span>
+        <span className="voice-style">{v.style}</span>
+        <button
+          className="voice-play"
+          title={playing ? 'Stop' : `Hear ${v.name}`}
+          onClick={(e) => { e.stopPropagation(); preview(v.key) }}
+        >
+          {playing ? <span className="eq"><i /><i /><i /></span> : <Play size={13} fill="currentColor" />}
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="page narrow">
-      <div className="page-head"><div><h2>Settings</h2><p className="muted">Your profile, how Brain answers, and your session.</p></div></div>
+    <div className="page settings-page">
+      <div className="page-head"><div><h2>Settings</h2><p className="muted">Your profile, how Brain answers, its voice and your session.</p></div></div>
 
-      <section className="settings-card">
-        <header className="sc-head"><UserRound size={16} /> Profile</header>
-        <div className="sc-body profile-row">
-          <div className="avatar lg">{user.initials}</div>
-          <div className="profile-text">
-            <div className="profile-name">{user.name}</div>
-            <div className="muted small">{user.email}</div>
-          </div>
-          <span className="role-tag"><ShieldCheck size={13} /> {ROLE_LABELS[user.role] || user.role}</span>
-        </div>
-        <footer className="sc-foot">
-          <span className="muted small">Same account as the Ardena admin dashboard.</span>
-          <button className="ghost-btn danger" onClick={onLogout}><LogOut size={15} /> Sign out</button>
-        </footer>
-      </section>
-
-      <section className="settings-card">
-        <header className="sc-head"><SlidersHorizontal size={16} /> Answers</header>
-        <div className="sc-body">
-          <div className="field">Default mode
-            <div className="seg">
-              {models.map((m) => (
-                <button key={m.id} className={model === m.id ? 'on' : ''} onClick={() => setModel(m.id)}>{m.name}</button>
-              ))}
+      <div className="settings-grid">
+        <div className="settings-col">
+          <section className="settings-card">
+            <header className="sc-head"><span className="sc-icon"><UserRound size={15} /></span> Profile</header>
+            <div className="sc-body profile-row">
+              <div className="avatar lg">{user.initials}</div>
+              <div className="profile-text">
+                <div className="profile-name">{user.name}</div>
+                <div className="muted small">{user.email}</div>
+              </div>
+              <span className="role-tag"><ShieldCheck size={13} /> {ROLE_LABELS[user.role] || user.role}</span>
             </div>
-            <span className="muted small">{models.find((m) => m.id === model)?.hint}. The knowledge base is always used.</span>
-          </div>
-          <div className="kv"><span>Knowledge you can read</span><span>{me.groups.map((g) => g.name).join(', ')}</span></div>
-        </div>
-      </section>
+            <footer className="sc-foot">
+              <span className="muted small">Same account as the Ardena admin dashboard.</span>
+              <button className="ghost-btn danger" onClick={onLogout}><LogOut size={15} /> Sign out</button>
+            </footer>
+          </section>
 
-      <section className="settings-card">
-        <header className="sc-head"><AudioLines size={16} /> Voice</header>
-        <div className="sc-body">
-          {me.voice_enabled ? (
-            <>
-              <label className="toggle"><input type="checkbox" checked={speakAnswers} onChange={toggleSpeak} /> Read answers aloud in voice mode</label>
-              {['female', 'male'].map((gender) => (
-                <div className="field" key={gender}>{gender === 'female' ? "Women's voices" : "Men's voices"}
-                  <div className="voice-grid">
-                    {VOICES.filter((v) => v.gender === gender).map((v) => (
-                      <div key={v.key} className={`voice-opt ${voice === v.key ? 'on' : ''}`} onClick={() => pickVoice(v.key)} role="radio" aria-checked={voice === v.key}>
-                        <span className="voice-name">
-                          {v.name}{voice === v.key && <Check size={13} />}
-                          <button
-                            className="icon-btn sm voice-play"
-                            title={previewing === v.key ? 'Stop' : 'Hear this voice'}
-                            onClick={(e) => { e.stopPropagation(); preview(v.key) }}
-                          >
-                            {previewing === v.key ? <Square size={12} /> : <Play size={13} />}
-                          </button>
-                        </span>
-                        <span className="muted small">{noSample === v.key ? 'Sample not available' : v.style}</span>
-                      </div>
-                    ))}
-                  </div>
+          <section className="settings-card">
+            <header className="sc-head"><span className="sc-icon"><SlidersHorizontal size={15} /></span> Answers</header>
+            <div className="sc-body">
+              <div className="field">Default mode
+                <div className="seg">
+                  {models.map((m) => (
+                    <button key={m.id} className={model === m.id ? 'on' : ''} onClick={() => setModel(m.id)}>{m.name}</button>
+                  ))}
                 </div>
-              ))}
-            </>
-          ) : (
-            <span className="muted small">Voice isn't switched on for Ardena yet.</span>
-          )}
-        </div>
-      </section>
+                <span className="muted small">{models.find((m) => m.id === model)?.hint}. The knowledge base is always used.</span>
+              </div>
+              <div className="field">Knowledge you can read
+                <div className="group-tags">
+                  {me.groups.map((g) => <span key={g.key} className="group-tag">{g.name}</span>)}
+                </div>
+              </div>
+            </div>
+          </section>
 
-      <section className="settings-card">
-        <header className="sc-head"><Shield size={16} /> Security</header>
-        <div className="sc-body">
-          <div className="kv"><span>Sign-in</span><span>Admin account + one-time code</span></div>
-          <div className="kv"><span>Session</span><span>8 hours, signs out after 30 min idle</span></div>
-          <div className="kv"><span>Active sessions</span><span>{me.active_sessions}</span></div>
+          <section className="settings-card">
+            <header className="sc-head"><span className="sc-icon"><Shield size={15} /></span> Security</header>
+            <div className="sc-body">
+              <div className="kv"><span>Sign-in</span><span>Admin account + one-time code</span></div>
+              <div className="kv"><span>Session</span><span>8 hours, signs out after 30 min idle</span></div>
+              <div className="kv"><span>Active sessions</span><span>{me.active_sessions}</span></div>
+            </div>
+            <footer className="sc-foot">
+              <span className="muted small">Every sign-in, upload, download and reveal is logged.</span>
+              <span className="row-actions">
+                {me.can_view_audit && <button className="ghost-btn" onClick={onAudit}><ScrollText size={15} /> Audit log</button>}
+                <button className="ghost-btn" onClick={everywhere} disabled={busy}>Sign out everywhere</button>
+              </span>
+            </footer>
+          </section>
         </div>
-        <footer className="sc-foot">
-          <span className="muted small">Every sign-in, upload, download and reveal is logged.</span>
-          <span className="row-actions">
-            {me.can_view_audit && <button className="ghost-btn" onClick={onAudit}><ScrollText size={15} /> Audit log</button>}
-            <button className="ghost-btn" onClick={everywhere} disabled={busy}>Sign out everywhere</button>
-          </span>
-        </footer>
-      </section>
+
+        <div className="settings-col">
+          <section className="settings-card">
+            <header className="sc-head">
+              <span className="sc-icon"><AudioLines size={15} /></span> Voice
+              {me.voice_enabled && (
+                <label className="switch" title="Read answers aloud in voice mode">
+                  <input type="checkbox" checked={speakAnswers} onChange={toggleSpeak} />
+                  <span className="switch-track"><span className="switch-thumb" /></span>
+                  <span className="switch-label">Read answers aloud</span>
+                </label>
+              )}
+            </header>
+            <div className="sc-body">
+              {me.voice_enabled ? (
+                <>
+                  <p className="muted small voice-intro">Pick how Brain sounds in voice mode. Press play to hear a short sample.</p>
+                  {['female', 'male'].map((gender) => (
+                    <div className="voice-group" key={gender}>
+                      <div className="voice-group-label">{gender === 'female' ? "Women's voices" : "Men's voices"}</div>
+                      <div className="voice-list">{VOICES.filter((v) => v.gender === gender).map(voiceRow)}</div>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <span className="muted small">Voice isn't switched on for Ardena yet.</span>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   )
 }
