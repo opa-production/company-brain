@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import Sidebar from './components/Sidebar.jsx'
 import Topbar from './components/Topbar.jsx'
 import VoiceMode from './components/VoiceMode.jsx'
@@ -9,7 +8,9 @@ import Login from './pages/Login.jsx'
 import { AuditPage, FactsPage, HistoryPage, SettingsPage } from './pages/OtherPages.jsx'
 import { specialists } from './config.js'
 import * as api from './lib/api.js'
+import { clearPageCache } from './lib/cache.js'
 import { BrainContext, dayLabel, groupName } from './lib/brain.jsx'
+import { AppSkeleton } from './components/Skeletons.jsx'
 
 const MODE_KEY = 'ardena-brain-mode'
 
@@ -77,6 +78,7 @@ export default function App() {
   const setModel = (m) => { setModelState(m); localStorage.setItem(MODE_KEY, m) }
 
   const signedOut = useCallback((reason) => {
+    clearPageCache()
     cancelRef.current?.()
     cancelRef.current = null
     setBusy(false)
@@ -296,6 +298,8 @@ export default function App() {
     return <Login reason={signedOutReason} onSignedIn={() => { setSignedOutReason(''); setAuthed(true) }} />
   }
 
+  if (!me && !bootError) return <AppSkeleton />
+
   if (!me) {
     return (
       <div className="boot">
@@ -305,7 +309,7 @@ export default function App() {
             <button className="primary-btn" onClick={() => window.location.reload()}>Try again</button>
             <button className="link-btn center" onClick={logout}>Sign out</button>
           </div>
-        ) : <Loader2 size={22} className="spin" />}
+        ) : null}
       </div>
     )
   }

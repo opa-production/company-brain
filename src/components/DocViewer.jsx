@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
-  X, CheckCircle2, Loader2, AlertCircle, Circle, Download, Trash2, RotateCcw, MessageSquareText, Lock, FileText, ExternalLink,
+  X, CheckCircle2, AlertCircle, Circle, Download, Trash2, RotateCcw, MessageSquareText, Lock, FileText, ExternalLink,
 } from 'lucide-react'
 import { FileBadge } from './Icon.jsx'
 import * as api from '../lib/api.js'
 import { formatDate, formatSize, useBrain } from '../lib/brain.jsx'
+import Loader, { LoaderBlock } from './Loader.jsx'
+import { PagesSkeleton } from './Skeletons.jsx'
 
 // The server's ingestion stages, in order (app/brain/ingest.py).
 export const STAGES = ['Uploaded', 'Extracting text', 'Splitting into passages', 'Indexing', 'Indexed']
@@ -72,7 +74,7 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
           {tab === 'original' && isPdf && (
             originalUrl
               ? <iframe className="reader-frame" src={originalUrl} title={doc.title} />
-              : <div className="empty"><Loader2 size={18} className="spin" /></div>
+              : <LoaderBlock label="Opening the file" />
           )}
           {tab === 'text' && (
             <div className="pages">
@@ -82,7 +84,7 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
                   {doc.status === 'failed' ? 'Text could not be extracted from this file.' : 'Still processing. The text appears here once it is indexed.'}
                 </div>
               )}
-              {doc.status === 'indexed' && !pages && !textError && <div className="empty"><Loader2 size={18} className="spin" /></div>}
+              {doc.status === 'indexed' && !pages && !textError && <PagesSkeleton />}
               {pages && pages.length === 0 && <div className="reader-note"><FileText size={14} /> No text was found.</div>}
               {pages && pages.map((p) => (
                 <article key={p.ordinal} className="paper">
@@ -106,7 +108,7 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
                 return (
                   <li key={s} className={done ? 'done' : active ? 'active' : failedHere ? 'failed' : ''}>
                     <span className="pl-icon">
-                      {done ? <CheckCircle2 size={16} /> : active ? <Loader2 size={16} className="spin" /> : failedHere ? <AlertCircle size={16} /> : <Circle size={16} />}
+                      {done ? <CheckCircle2 size={16} /> : active ? <Loader size={16} /> : failedHere ? <AlertCircle size={16} /> : <Circle size={16} />}
                     </span>
                     <span>
                       {s}
@@ -142,7 +144,7 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
                 <a className="ghost-btn" href={doc.url} target="_blank" rel="noreferrer"><ExternalLink size={15} /> Open page</a>
               ) : (
                 <button className="ghost-btn" onClick={download} disabled={downloading}>
-                  {downloading ? <Loader2 size={15} className="spin" /> : <Download size={15} />} Download
+                  {downloading ? <Loader size={15} /> : <Download size={15} />} Download
                 </button>
               )}
               {doc.can_delete && <button className="ghost-btn danger" onClick={() => onDelete(doc.id)}><Trash2 size={15} /> Delete</button>}

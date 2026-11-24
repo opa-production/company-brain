@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Lock, Mail, ArrowLeft, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Lock, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import Loader from '../components/Loader.jsx'
 import Orb from '../components/Orb.jsx'
 import * as api from '../lib/api.js'
 
@@ -111,7 +112,7 @@ export default function Login({ onSignedIn, reason }) {
               </div>
             </label>
             {error && <div className="form-error">{error}</div>}
-            <button className="primary-btn block" disabled={busy}>{busy ? <Loader2 size={16} className="spin" /> : 'Continue'}</button>
+            <button className="primary-btn block" disabled={busy}>{busy ? <Loader size={18} tone="light" /> : 'Continue'}</button>
           </form>
         ) : (
           <div>
@@ -133,7 +134,7 @@ export default function Login({ onSignedIn, reason }) {
             </div>
             {error && <div className="form-error">{error}</div>}
             <button className="primary-btn block" disabled={busy} onClick={() => verify(code.join(''))}>
-              {busy ? <Loader2 size={16} className="spin" /> : 'Verify and sign in'}
+              {busy ? <Loader size={18} tone="light" /> : 'Verify and sign in'}
             </button>
             <button className="link-btn center" disabled={cooldown > 0} onClick={resend}>
               {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}

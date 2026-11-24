@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
-// Everyone's profile picture: the shared image at /avatar.png.
+// Everyone's profile picture: the shared image at /rabbit.png.
 // Falls back to initials if the image is missing.
-export const AVATAR_SRC = '/avatar.png'
+export const AVATAR_SRC = '/rabbit.png'
 
 export default function UserAvatar({ user, size = 'md', className = '', ...rest }) {
   const [broken, setBroken] = useState(false)

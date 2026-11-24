@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Loader2 } from 'lucide-react'
+import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import Composer from '../components/Composer.jsx'
 import Orb from '../components/Orb.jsx'
 import { Icon } from '../components/Icon.jsx'
 import { Markdown } from '../lib/markdown.jsx'
 import { greeting } from '../lib/greeting.js'
 import { useBrain } from '../lib/brain.jsx'
+import { ChatSkeleton } from '../components/Skeletons.jsx'
 
 function Working({ label }) {
   return (
@@ -108,7 +109,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
   }, [messages.length, last?.content, last?.steps?.length])
 
   if (chat && chat.messages === null) {
-    return <div className="chat-loading"><Loader2 size={20} className="spin" /></div>
+    return <ChatSkeleton />
   }
 
   if (!messages.length) {

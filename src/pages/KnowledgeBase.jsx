@@ -1,24 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Upload, Search, Trash2, ExternalLink, Plus, Lock, Loader2, AlertCircle, CheckCircle2, RotateCcw, ChevronRight } from 'lucide-react'
+import { Upload, Search, Trash2, ExternalLink, Plus, Lock, AlertCircle, CheckCircle2, RotateCcw, ChevronRight } from 'lucide-react'
 import { Icon, FileBadge } from '../components/Icon.jsx'
 import DocViewer from '../components/DocViewer.jsx'
 import * as api from '../lib/api.js'
+import { pageCache } from '../lib/cache.js'
 import { formatDate, formatSize, useBrain } from '../lib/brain.jsx'
+import Loader from '../components/Loader.jsx'
+import { TableSkeleton } from '../components/Skeletons.jsx'
 
 const ACCEPT = '.pdf,.docx,.pptx,.xlsx,.csv,.txt,.md'
 
 function Status({ s }) {
   if (s === 'indexed') return <span className="status ok"><CheckCircle2 size={13} /> Indexed</span>
   if (s === 'failed') return <span className="status bad"><AlertCircle size={13} /> Failed</span>
-  return <span className="status busy"><Loader2 size={13} className="spin" /> {s === 'queued' ? 'Queued' : 'Processing'}</span>
+  return <span className="status busy"><Loader size={13} /> {s === 'queued' ? 'Queued' : 'Processing'}</span>
 }
+
+// Last list seen per group (see lib/cache.js): shown instantly on return, then refreshed.
+const docCache = { get: (k) => pageCache.get(`docs:${k}`), has: (k) => pageCache.has(`docs:${k}`), set: (k, v) => pageCache.set(`docs:${k}`, v) }
 
 const pending = (d) => d.status === 'queued' || d.status === 'processing'
 
 export default function KnowledgeBase({ group, setGroup, onAsk }) {
   const { groups, refreshMe } = useBrain()
-  const [docs, setDocs] = useState([])
-  const [loading, setLoading] = useState(true)
+  const cacheKey = group || 'overview'
+  const [docs, setDocs] = useState(() => docCache.get(cacheKey) || [])
+  const [loading, setLoading] = useState(() => !docCache.has(cacheKey))
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [openId, setOpenId] = useState(null)
@@ -39,6 +46,7 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
     try {
       const res = await api.documents({ group: group && !isAll ? group : null })
       setDocs(res.documents)
+      docCache.set(group || 'overview', res.documents)
       setError('')
     } catch (e) {
       setError(e.message)
@@ -47,7 +55,11 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
     }
   }, [group, isAll])
 
-  useEffect(() => { setLoading(true); load() }, [load])
+  useEffect(() => {
+    const cached = docCache.get(group || 'overview')
+    if (cached) { setDocs(cached); setLoading(false) } else setLoading(true)
+    load()
+  }, [load]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // While anything is being read, refresh every couple of seconds.
   const anyPending = docs.some(pending)
@@ -130,7 +142,7 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
         </div>
         {!isLinks && (
           <button className="primary-btn" onClick={() => input.current.click()} disabled={uploading > 0}>
-            {uploading > 0 ? <Loader2 size={16} className="spin" /> : <Upload size={16} />} Upload
+            {uploading > 0 ? <Loader size={16} tone="light" /> : <Upload size={16} />} Upload
           </button>
         )}
         <input ref={input} type="file" multiple hidden accept={ACCEPT} onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} />
@@ -162,12 +174,12 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
       )}
 
       {loading ? (
-        <div className="empty"><Loader2 size={18} className="spin" /></div>
+        <TableSkeleton rows={isLinks ? 4 : 7} badge={!isLinks} cols={!group || isAll ? 3 : 2} />
       ) : isLinks ? (
         <>
           <form className="link-form" onSubmit={submitLink}>
             <input placeholder="https://… a page Brain should read and keep up to date" value={newLink} onChange={(e) => setNewLink(e.target.value)} />
-            <button className="primary-btn" type="submit" disabled={adding}>{adding ? <Loader2 size={16} className="spin" /> : <Plus size={16} />} Add link</button>
+            <button className="primary-btn" type="submit" disabled={adding}>{adding ? <Loader size={16} tone="light" /> : <Plus size={16} />} Add link</button>
           </form>
           <div className="table">
             <div className="tr th"><span>Page</span><span>Last read</span><span>Status</span><span /></div>

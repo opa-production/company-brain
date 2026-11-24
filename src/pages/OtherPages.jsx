@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Lock, FileText, MessageSquare, Shield, AudioLines, UserRound, ShieldCheck, LogOut,
-  SlidersHorizontal, Plus, Pencil, Trash2, Loader2, ScrollText, Play, Square, Archive, ArchiveRestore, X,
+  SlidersHorizontal, Plus, Pencil, Trash2, ScrollText, Play, Square, Archive, ArchiveRestore, X,
 } from 'lucide-react'
 import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY, VOICES, DEFAULT_VOICE } from '../config.js'
 import * as api from '../lib/api.js'
+import { pageCache } from '../lib/cache.js'
 import { useBrain, dayLabel } from '../lib/brain.jsx'
 import Select from '../components/Select.jsx'
 import UserAvatar from '../components/UserAvatar.jsx'
+import Loader from '../components/Loader.jsx'
+import { FactsSkeleton, TableSkeleton } from '../components/Skeletons.jsx'
 
 const EMPTY_FACT = { key: '', label: '', value: '', group: '', restricted: false, source: '' }
 
@@ -75,7 +78,7 @@ function FactForm({ initial, groups, onSaved, onCancel }) {
       {error && <div className="form-error">{error}</div>}
       <div className="ff-foot">
         <button type="button" className="ghost-btn" onClick={onCancel}>Cancel</button>
-        <button className="primary-btn" disabled={saving}>{saving ? <Loader2 size={15} className="spin" /> : isNew ? 'Add fact' : 'Save changes'}</button>
+        <button className="primary-btn" disabled={saving}>{saving ? <Loader size={16} tone="light" /> : isNew ? 'Add fact' : 'Save changes'}</button>
       </div>
     </form>
   )
@@ -83,7 +86,9 @@ function FactForm({ initial, groups, onSaved, onCancel }) {
 
 export function FactsPage() {
   const { me, groups } = useBrain()
-  const [facts, setFacts] = useState(null)
+  const [facts, setFactsState] = useState(() => pageCache.get('facts') || null)
+  // Keep the module cache in step so returning to the page is instant.
+  const setFacts = (v) => setFactsState((prev) => { const next = typeof v === 'function' ? v(prev) : v; pageCache.set('facts', next); return next })
   const [error, setError] = useState('')
   const [revealed, setRevealed] = useState({})
   const [copied, setCopied] = useState(null)
@@ -120,7 +125,12 @@ export function FactsPage() {
   }
 
   if (!facts) {
-    return <div className="page"><div className="empty">{error || <Loader2 size={18} className="spin" />}</div></div>
+    return (
+      <div className="page">
+        <div className="page-head"><div><h2>Company facts</h2><p className="muted">Exact values Brain quotes word for word: registration numbers, PINs, certificates.</p></div></div>
+        {error ? <div className="notice bad">{error}</div> : <FactsSkeleton />}
+      </div>
+    )
   }
 
   const order = groups.map((g) => g.key)
@@ -267,7 +277,7 @@ export function HistoryPage({ chats, openChat, removeChat, archiveChat, onRestor
         </div>
       ) : (
         <div className="table">
-          {archived === null && <div className="empty"><Loader2 size={18} className="spin" /></div>}
+          {archived === null && <TableSkeleton rows={4} badge={false} />}
           {archived?.map((c) => (
             <div key={c.id} className="tr history-row">
               <span className="doc-cell"><Archive size={16} /> {c.title}</span>
@@ -493,7 +503,7 @@ export function AuditPage() {
         </div>
       </div>
       {error && <div className="notice bad">{error}</div>}
-      {!rows ? <div className="empty"><Loader2 size={18} className="spin" /></div> : (
+      {!rows ? <TableSkeleton rows={8} badge={false} cols={3} /> : (
         <div className="table">
           <div className="tr th audit-row"><span>When</span><span>Who</span><span>What</span><span>Detail</span></div>
           {rows.map((r) => (
