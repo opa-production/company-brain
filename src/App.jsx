@@ -229,13 +229,49 @@ export default function App() {
     }
   }
 
+  // Chat actions from the sidebar "⋯" menu and History. Optimistic: the list
+  // updates at once and rolls back if the server refuses.
+  const [chatError, setChatError] = useState('')
+  const flashError = (msg) => { setChatError(msg); setTimeout(() => setChatError(''), 4000) }
+
   const removeChat = async (id) => {
-    const c = chats.find((x) => x.id === id)
+    const c = chatsRef.current.find((x) => x.id === id)
     if (!c) return
     if (activeChatId === id) newChat(null)
     setChats((cs) => cs.filter((x) => x.id !== id))
-    if (c.serverId) api.deleteConversation(c.serverId).catch(() => {})
+    if (!c.serverId) return
+    try { await api.deleteConversation(c.serverId) } catch (e) {
+      if (e.status !== 404) { setChats((cs) => [c, ...cs]); flashError(e.message || "Couldn't delete that chat.") }
+    }
   }
+
+  const renameChat = async (id, title) => {
+    const c = chatsRef.current.find((x) => x.id === id)
+    const clean = title.trim().slice(0, 200)
+    if (!c || !clean || clean === c.title) return
+    patchChat(id, (x) => ({ ...x, title: clean }))
+    if (!c.serverId) return
+    try { await api.renameConversation(c.serverId, clean) } catch (e) {
+      patchChat(id, (x) => ({ ...x, title: c.title }))
+      flashError(e.message || "Couldn't rename that chat.")
+    }
+  }
+
+  const archiveChat = async (id) => {
+    const c = chatsRef.current.find((x) => x.id === id)
+    if (!c?.serverId) return
+    if (activeChatId === id) newChat(null)
+    setChats((cs) => cs.filter((x) => x.id !== id))
+    try { await api.archiveConversation(c.serverId, true) } catch (e) {
+      setChats((cs) => [c, ...cs])
+      flashError(e.message || "Couldn't archive that chat.")
+    }
+  }
+
+  // Bring an archived chat back into the list (from History → Archived).
+  const restoreChat = (summary) => setChats((cs) =>
+    [fromSummary({ ...summary, archived: false }), ...cs.filter((x) => x.serverId !== summary.id)]
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)))
 
   // Voice: send the transcript as a normal turn and hand back the answer to speak.
   const sendRef = useRef(send)
@@ -288,6 +324,9 @@ export default function App() {
             activeChatId={activeChatId}
             openChat={openChat}
             newChat={newChat}
+            onRenameChat={renameChat}
+            onArchiveChat={archiveChat}
+            onDeleteChat={removeChat}
             collapsed={collapsed}
             setCollapsed={setCollapsed}
           />
@@ -315,10 +354,13 @@ export default function App() {
               )}
               {view === 'kb' && <KnowledgeBase group={kbGroup} setGroup={setKbGroup} onAsk={(t) => send(t, { fresh: true })} />}
               {view === 'facts' && <FactsPage />}
-              {view === 'history' && <HistoryPage chats={chats} openChat={openChat} removeChat={removeChat} />}
+              {view === 'history' && (
+                <HistoryPage chats={chats} openChat={openChat} removeChat={removeChat} archiveChat={archiveChat} renameChat={renameChat} onRestored={restoreChat} />
+              )}
               {view === 'settings' && <SettingsPage onLogout={logout} onLoggedOutEverywhere={() => signedOut('')} model={model} setModel={setModel} onAudit={() => go('audit')} />}
               {view === 'audit' && <AuditPage />}
             </div>
+            {chatError && <div className="toast" role="status">{chatError}</div>}
             {voiceOpen && (
               <VoiceMode
                 minimized={voiceMin}

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Copy, Check, Eye, EyeOff, Lock, FileText, MessageSquare, Shield, AudioLines, UserRound, ShieldCheck, LogOut,
-  SlidersHorizontal, Plus, Pencil, Trash2, Loader2, ScrollText,
+  SlidersHorizontal, Plus, Pencil, Trash2, Loader2, ScrollText, Play, Square, Archive, ArchiveRestore,
 } from 'lucide-react'
-import { models, ROLE_LABELS, SPEAK_KEY } from '../config.js'
+import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY } from '../config.js'
 import * as api from '../lib/api.js'
-import { useBrain } from '../lib/brain.jsx'
+import { useBrain, dayLabel } from '../lib/brain.jsx'
 
 const EMPTY_FACT = { key: '', label: '', value: '', group: '', restricted: false, source: '' }
 
@@ -177,28 +177,84 @@ export function FactsPage() {
   )
 }
 
-export function HistoryPage({ chats, openChat, removeChat }) {
+export function HistoryPage({ chats, openChat, removeChat, archiveChat, onRestored }) {
+  const [tab, setTab] = useState('chats')
+  const [archived, setArchived] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (tab !== 'archived') return
+    setArchived(null)
+    setError('')
+    api.conversations({ archived: true })
+      .then((r) => setArchived(r.conversations.filter((c) => c.archived)))
+      .catch((e) => { setArchived([]); setError(e.message) })
+  }, [tab])
+
+  const restore = async (c) => {
+    setArchived((list) => list.filter((x) => x.id !== c.id))
+    try {
+      const updated = await api.archiveConversation(c.id, false)
+      onRestored(updated || c)
+    } catch (e) {
+      setArchived((list) => [c, ...list])
+      setError(e.message)
+    }
+  }
+
+  const destroyArchived = async (c) => {
+    if (!window.confirm(`Delete “${c.title}” for good? This can't be undone.`)) return
+    setArchived((list) => list.filter((x) => x.id !== c.id))
+    try { await api.deleteConversation(c.id) } catch (e) { setArchived((list) => [c, ...list]); setError(e.message) }
+  }
+
   return (
     <div className="page">
-      <div className="page-head"><div><h2>History</h2><p className="muted">Your conversations. Only you can see them.</p></div></div>
-      <div className="table">
-        {chats.map((c) => (
-          <div key={c.id} className="tr history-row clickable" onClick={() => openChat(c.id)}>
-            <span className="doc-cell"><MessageSquare size={16} /> {c.title}</span>
-            <span className="row-actions">
-              <span className="muted">{c.day}</span>
-              <button
-                className="icon-btn sm"
-                title="Delete chat"
-                onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete “${c.title}”?`)) removeChat(c.id) }}
-              >
-                <Trash2 size={15} />
-              </button>
-            </span>
-          </div>
-        ))}
-        {chats.length === 0 && <div className="empty">No conversations yet.</div>}
+      <div className="page-head">
+        <div><h2>History</h2><p className="muted">Your conversations. Only you can see them.</p></div>
+        <div className="viewer-tabs">
+          <button className={tab === 'chats' ? 'on' : ''} onClick={() => setTab('chats')}>Chats</button>
+          <button className={tab === 'archived' ? 'on' : ''} onClick={() => setTab('archived')}>Archived</button>
+        </div>
       </div>
+      {error && <div className="form-error">{error}</div>}
+
+      {tab === 'chats' ? (
+        <div className="table">
+          {chats.map((c) => (
+            <div key={c.id} className="tr history-row clickable" onClick={() => openChat(c.id)}>
+              <span className="doc-cell"><MessageSquare size={16} /> {c.title}</span>
+              <span className="row-actions" onClick={(e) => e.stopPropagation()}>
+                <span className="muted">{c.day}</span>
+                <button className="icon-btn sm" title="Archive" disabled={!c.serverId} onClick={() => archiveChat(c.id)}><Archive size={15} /></button>
+                <button
+                  className="icon-btn sm"
+                  title="Delete chat"
+                  onClick={() => { if (window.confirm(`Delete “${c.title}” for good? This can't be undone.`)) removeChat(c.id) }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </span>
+            </div>
+          ))}
+          {chats.length === 0 && <div className="empty">No conversations yet.</div>}
+        </div>
+      ) : (
+        <div className="table">
+          {archived === null && <div className="empty"><Loader2 size={18} className="spin" /></div>}
+          {archived?.map((c) => (
+            <div key={c.id} className="tr history-row">
+              <span className="doc-cell"><Archive size={16} /> {c.title}</span>
+              <span className="row-actions">
+                <span className="muted">{dayLabel(c.last_message_at)}</span>
+                <button className="icon-btn sm" title="Restore to chat list" onClick={() => restore(c)}><ArchiveRestore size={15} /></button>
+                <button className="icon-btn sm" title="Delete for good" onClick={() => destroyArchived(c)}><Trash2 size={15} /></button>
+              </span>
+            </div>
+          ))}
+          {archived?.length === 0 && !error && <div className="empty">No archived chats. Archive one from the ⋯ menu in the chat list.</div>}
+        </div>
+      )}
     </div>
   )
 }
@@ -208,6 +264,30 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
   const user = me.user
   const [speakAnswers, setSpeakAnswers] = useState(() => localStorage.getItem(SPEAK_KEY) !== 'off')
   const [busy, setBusy] = useState(false)
+  const [voice, setVoice] = useState(() => localStorage.getItem(VOICE_KEY) || me.default_voice)
+  const [previewing, setPreviewing] = useState(null)
+
+  // Samples are static files shipped with the UI (public/voices/<key>.mp3),
+  // so hearing a voice before picking it never calls the backend.
+  const sampleRef = useRef(null)
+  const [noSample, setNoSample] = useState(null)
+  const preview = (key) => {
+    sampleRef.current?.pause()
+    if (previewing === key) return setPreviewing(null)
+    const audio = new Audio(`/voices/${key}.mp3`)
+    sampleRef.current = audio
+    setNoSample(null)
+    setPreviewing(key)
+    audio.onended = () => setPreviewing(null)
+    audio.onerror = () => { setPreviewing(null); setNoSample(key) }
+    audio.play().catch(() => setPreviewing(null))
+  }
+  useEffect(() => () => sampleRef.current?.pause(), [])
+  const pickVoice = (key) => {
+    setVoice(key)
+    localStorage.setItem(VOICE_KEY, key)
+  }
+
 
   const toggleSpeak = () => {
     const next = !speakAnswers
@@ -261,7 +341,30 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
         <header className="sc-head"><AudioLines size={16} /> Voice</header>
         <div className="sc-body">
           {me.voice_enabled ? (
-            <label className="toggle"><input type="checkbox" checked={speakAnswers} onChange={toggleSpeak} /> Read answers aloud in voice mode</label>
+            <>
+              <label className="toggle"><input type="checkbox" checked={speakAnswers} onChange={toggleSpeak} /> Read answers aloud in voice mode</label>
+              {['female', 'male'].map((gender) => (
+                <div className="field" key={gender}>{gender === 'female' ? "Women's voices" : "Men's voices"}
+                  <div className="voice-grid">
+                    {me.voices.filter((v) => v.gender === gender).map((v) => (
+                      <div key={v.key} className={`voice-opt ${voice === v.key ? 'on' : ''}`} onClick={() => pickVoice(v.key)} role="radio" aria-checked={voice === v.key}>
+                        <span className="voice-name">
+                          {v.name}{voice === v.key && <Check size={13} />}
+                          <button
+                            className="icon-btn sm voice-play"
+                            title={previewing === v.key ? 'Stop' : 'Hear this voice'}
+                            onClick={(e) => { e.stopPropagation(); preview(v.key) }}
+                          >
+                            {previewing === v.key ? <Square size={12} /> : <Play size={13} />}
+                          </button>
+                        </span>
+                        <span className="muted small">{noSample === v.key ? 'Sample not available' : v.style}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
           ) : (
             <span className="muted small">Voice isn't switched on for Ardena yet.</span>
           )}

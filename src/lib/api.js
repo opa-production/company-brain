@@ -127,9 +127,11 @@ export const deleteFact = (key) => request(`/brain/facts/${key}`, { method: 'DEL
 
 // ---------------------------------------------------------------- chat
 
-export const conversations = () => request('/brain/conversations')
+/** Chats, newest first. Archived chats only come back with { archived: true }. */
+export const conversations = ({ archived } = {}) => request(`/brain/conversations${archived ? '?archived=true' : ''}`)
 export const conversation = (id) => request(`/brain/conversations/${id}`)
 export const renameConversation = (id, title) => request(`/brain/conversations/${id}`, { method: 'PATCH', body: { title } })
+export const archiveConversation = (id, archived = true) => request(`/brain/conversations/${id}`, { method: 'PATCH', body: { archived } })
 export const deleteConversation = (id) => request(`/brain/conversations/${id}`, { method: 'DELETE' })
 export const feedback = (messageId, value) => request(`/brain/messages/${messageId}/feedback`, { method: 'POST', body: { value } })
 
@@ -210,8 +212,8 @@ export function transcribe(blob) {
 }
 
 /** Returns an object URL for an mp3 of `text`; revoke it after playing. */
-export async function speak(text) {
-  const res = await request('/brain/voice/speak', { method: 'POST', body: { text }, raw: true })
+export async function speak(text, voice) {
+  const res = await request('/brain/voice/speak', { method: 'POST', body: { text, voice: voice || null }, raw: true })
   return URL.createObjectURL(await res.blob())
 }
 

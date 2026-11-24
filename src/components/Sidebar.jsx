@@ -1,14 +1,102 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Search, PanelLeft, SquarePen, BookOpen, KeyRound, History, Settings, ChevronDown, ChevronRight, ArrowRight,
+  MoreHorizontal, Pencil, Archive, Trash2,
 } from 'lucide-react'
 import { Icon } from './Icon.jsx'
 import { specialists } from '../config.js'
 import { useBrain } from '../lib/brain.jsx'
 
+// One chat in the list, with a "⋯" menu: Rename (inline), Archive, Delete.
+function ChatRow({ chat, active, onOpen, onRename, onArchive, onDelete }) {
+  const [menu, setMenu] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(chat.title)
+  const ref = useRef(null)
+  const sp = specialists.find((s) => s.id === chat.specialist)
+  const saved = !!chat.serverId
+
+  useEffect(() => {
+    if (!menu) return
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) { setMenu(false); setConfirmDelete(false) } }
+    const esc = (e) => { if (e.key === 'Escape') { setMenu(false); setConfirmDelete(false) } }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+  }, [menu])
+
+  const commit = () => {
+    setEditing(false)
+    if (draft.trim() && draft.trim() !== chat.title) onRename(chat.id, draft)
+    else setDraft(chat.title)
+  }
+
+  if (editing) {
+    return (
+      <div className="chat-row editing">
+        <input
+          className="chat-rename"
+          autoFocus
+          value={draft}
+          maxLength={200}
+          onChange={(e) => setDraft(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit()
+            if (e.key === 'Escape') { setDraft(chat.title); setEditing(false) }
+          }}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className={`chat-row ${active ? 'active' : ''} ${menu ? 'menu-open' : ''}`} ref={ref}>
+      <button className="chat-link" onClick={onOpen} title={sp ? `${sp.name} specialist · ${chat.title}` : chat.title}>
+        {sp && <Icon name={sp.icon} size={13} className="chat-sp" />}
+        <span>{chat.title}</span>
+      </button>
+      <button
+        className="chat-more"
+        title={saved ? 'Chat actions' : 'Available once the first answer is saved'}
+        disabled={!saved}
+        onClick={() => { setMenu((m) => !m); setConfirmDelete(false) }}
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {menu && (
+        <div className="menu chat-menu">
+          <button className="menu-item" onClick={() => { setMenu(false); setDraft(chat.title); setEditing(true) }}>
+            <Pencil size={15} /><span className="menu-grow">Rename</span>
+          </button>
+          <button className="menu-item" onClick={() => { setMenu(false); onArchive(chat.id) }}>
+            <Archive size={15} /><span className="menu-grow">Archive</span>
+          </button>
+          <div className="menu-sep" />
+          {confirmDelete ? (
+            <div className="menu-confirm">
+              <div className="menu-hint">Delete this chat for good? This can't be undone.</div>
+              <div className="menu-confirm-row">
+                <button className="ghost-btn" onClick={() => setConfirmDelete(false)}>Cancel</button>
+                <button className="danger-btn" onClick={() => { setMenu(false); onDelete(chat.id) }}>Delete</button>
+              </div>
+            </div>
+          ) : (
+            <button className="menu-item danger" onClick={() => setConfirmDelete(true)}>
+              <Trash2 size={15} /><span className="menu-grow">Delete</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Sidebar({
   view, setView, kbGroup, setKbGroup, chats, activeChatId, openChat, newChat,
-  collapsed, setCollapsed, specialist, onSpecialist,
+  collapsed, setCollapsed, specialist, onSpecialist, onRenameChat, onArchiveChat, onDeleteChat,
 }) {
   const { groups: kbGroups } = useBrain()
   const [kbOpen, setKbOpen] = useState(true)
@@ -123,20 +211,17 @@ export default function Sidebar({
         {days.map((d) => (
           <div key={d}>
             <div className="day-label">{d}</div>
-            {filtered.filter((c) => c.day === d).map((c) => {
-              const sp = specialists.find((s) => s.id === c.specialist)
-              return (
-                <button
-                  key={c.id}
-                  className={`chat-link ${view === 'chat' && activeChatId === c.id ? 'active' : ''}`}
-                  onClick={() => openChat(c.id)}
-                  title={sp ? `${sp.name} specialist` : undefined}
-                >
-                  {sp && <Icon name={sp.icon} size={13} className="chat-sp" />}
-                  <span>{c.title}</span>
-                </button>
-              )
-            })}
+            {filtered.filter((c) => c.day === d).map((c) => (
+              <ChatRow
+                key={c.id}
+                chat={c}
+                active={view === 'chat' && activeChatId === c.id}
+                onOpen={() => openChat(c.id)}
+                onRename={onRenameChat}
+                onArchive={onArchiveChat}
+                onDelete={onDeleteChat}
+              />
+            ))}
           </div>
         ))}
         {filtered.length === 0 && <div className="muted small pad">No chats match “{q}”.</div>}

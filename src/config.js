@@ -70,3 +70,5 @@ export const ROLE_LABELS = {
 
 // localStorage key: whether voice mode reads answers aloud.
 export const SPEAK_KEY = 'ardena-brain-speak'
+// localStorage key: which of the API's voices this person picked.
+export const VOICE_KEY = 'ardena-brain-voice'

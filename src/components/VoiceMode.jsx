@@ -4,7 +4,7 @@ import VoiceVisualizer from './VoiceVisualizer.jsx'
 import Orb from './Orb.jsx'
 import { Icon } from './Icon.jsx'
 import * as api from '../lib/api.js'
-import { SPEAK_KEY } from '../config.js'
+import { SPEAK_KEY, VOICE_KEY } from '../config.js'
 
 // Hands-free voice loop: listening → thinking → speaking → listening.
 //   listening  record the mic; stop once speech is followed by a pause
@@ -128,7 +128,7 @@ export default function VoiceMode({ minimized, specialist, enabled, onExpand, on
         setCaption(answer.length > 280 ? answer.slice(0, 277) + '…' : answer)
         if (localStorage.getItem(SPEAK_KEY) !== 'off') {
           try {
-            await play(await api.speak(answer.slice(0, 4000)))
+            await play(await api.speak(answer.slice(0, 4000), localStorage.getItem(VOICE_KEY)))
           } catch (e) {
             setCaption(e.message)
           }
