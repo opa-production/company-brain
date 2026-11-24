@@ -19,6 +19,39 @@ import { SPEAK_KEY, VOICE_KEY } from '../config.js'
 const SILENCE_MS = 1300 // pause that ends a question
 const MAX_RECORD_MS = 45000
 const SPEECH_LEVEL = 0.035 // RMS above which we count it as talking
+const MAX_SPOKEN_CHARS = 1400 // ~1.5 minutes; the full answer is in the chat
+
+// Answers are written to be read on screen. Turn one into something that
+// sounds natural spoken: no tables, code, headings marks or citation tags,
+// list items as sentences, and cut at a sentence end rather than mid-word.
+export function toSpeech(md) {
+  let t = (md || '')
+    .replace(/```[\s\S]*?```/g, ' ')                       // code blocks
+    .split('\n')
+    .filter((l) => !/^\s*\|/.test(l) && !/^\s*[-:| ]{3,}\s*$/.test(l)) // table rows and rules
+    .map((l) => l
+      .replace(/^\s*#{1,6}\s*/, '')                          // heading marks
+      .replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '')               // bullets
+      .trim())
+    .filter(Boolean)
+    .map((l) => (/[.!?:;,]$/.test(l) ? l : l + '.'))
+    .join(' ')
+  t = t
+    .replace(/!?\[([^\]]+)\]\([^)]+\)/g, '$1')               // links → label
+    .replace(/https?:\/\/\S+/g, '')                          // bare URLs
+    .replace(/\[(?:\d+|S\d+|source[^\]]*)\]|【[^】]*】/gi, '')    // citation tags
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/[*_~>#]+/g, '')
+    .replace(/\s*[—–]\s*/g, ', ')                           // long dashes → pause
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .replace(/([.,!?;:])\1+/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+  if (t.length <= MAX_SPOKEN_CHARS) return t
+  const cut = t.slice(0, MAX_SPOKEN_CHARS)
+  const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '))
+  return (end > 200 ? cut.slice(0, end + 1) : cut) + ' The rest is in the chat.'
+}
 
 export default function VoiceMode({ minimized, specialist, enabled, onExpand, onClose, ask }) {
   const [phase, setPhase] = useState('listening')
@@ -118,17 +151,18 @@ export default function VoiceMode({ minimized, specialist, enabled, onExpand, on
           continue
         }
         if (!text) { setCaption("I didn't catch that."); continue }
-        setCaption(text)
+        setCaption('')
 
         const answer = await ask(text)
         if (stopped.current) break
         if (!answer) { setCaption('Brain couldn’t answer that. Try again.'); continue }
 
         setPhase('speaking')
-        setCaption(answer.length > 280 ? answer.slice(0, 277) + '…' : answer)
-        if (localStorage.getItem(SPEAK_KEY) !== 'off') {
+        setCaption('')
+        const spoken = toSpeech(answer)
+        if (localStorage.getItem(SPEAK_KEY) !== 'off' && spoken) {
           try {
-            await play(await api.speak(answer.slice(0, 4000), localStorage.getItem(VOICE_KEY)))
+            await play(await api.speak(spoken, localStorage.getItem(VOICE_KEY)))
           } catch (e) {
             setCaption(e.message)
           }
@@ -192,7 +226,9 @@ export default function VoiceMode({ minimized, specialist, enabled, onExpand, on
           <span className="voice-dot" />
           <span className={phase === 'thinking' && !problem ? 'shimmer' : ''}>{label}</span>
         </div>
-        <div className={`voice-caption ${phase === 'speaking' ? 'is-brain' : ''}`} key={phase === 'speaking' ? 'b' : 'y'}>
+        {/* Only status and problems here. What was said and the answer are in
+            the chat, which the user sees when they leave voice. */}
+        <div className="voice-caption" key={caption || problem || phase}>
           {problem || caption || (phase === 'listening' && !muted ? 'Ask anything. I answer when you pause.' : '')}
         </div>
       </div>
