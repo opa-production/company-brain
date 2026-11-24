@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Upload, Search, Trash2, ExternalLink, Plus, Lock, AlertCircle, CheckCircle2, RotateCcw, ChevronRight } from 'lucide-react'
 import { Icon, FileBadge } from '../components/Icon.jsx'
 import DocViewer from '../components/DocViewer.jsx'
+import EmptyState from '../components/EmptyState.jsx'
 import * as api from '../lib/api.js'
 import { pageCache } from '../lib/cache.js'
 import { formatDate, formatSize, useBrain } from '../lib/brain.jsx'
@@ -181,6 +182,12 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
             <input placeholder="https://… a page Brain should read and keep up to date" value={newLink} onChange={(e) => setNewLink(e.target.value)} />
             <button className="primary-btn" type="submit" disabled={adding}>{adding ? <Loader size={16} tone="light" /> : <Plus size={16} />} Add link</button>
           </form>
+          {links.length === 0 ? (
+            <EmptyState
+              title="No links yet"
+              text="Paste a web page above, like our website or terms, and Brain will read it and keep it up to date."
+            />
+          ) : (
           <div className="table">
             <div className="tr th"><span>Page</span><span>Last read</span><span>Status</span><span /></div>
             {links.map((l) => (
@@ -195,8 +202,8 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
                 </span>
               </div>
             ))}
-            {links.length === 0 && <div className="empty">No links yet. Add a page Brain should know about.</div>}
           </div>
+          )}
         </>
       ) : (
         <>
@@ -214,6 +221,20 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
             </div>
           )}
 
+          {visible.length === 0 && !q ? (
+            <EmptyState
+              title={g ? `Nothing in ${g.name} yet` : isAll && filter !== 'all' ? 'Nothing in this group yet' : 'Your knowledge base is empty'}
+              text={isAll
+                ? 'Upload documents and Brain will read them, cite them by page and answer from them.'
+                : 'Drop files in the box above. Brain reads them in about a minute, then answers from them.'}
+              action={isAll && (
+                <button className="primary-btn" onClick={() => input.current.click()} disabled={uploading > 0}>
+                  <Upload size={16} /> Upload documents
+                </button>
+              )}
+            />
+          ) : (
+          <>
           <div className="table-tools">
             <div className="search-box"><Search size={15} /><input placeholder="Search documents" value={q} onChange={(e) => setQ(e.target.value)} /></div>
             <span className="muted small">{visible.length} documents</span>
@@ -237,8 +258,10 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
                 </span>
               </div>
             ))}
-            {visible.length === 0 && <div className="empty">{q ? `Nothing matches “${q}”.` : 'No documents here yet. Drop some files above.'}</div>}
+            {visible.length === 0 && <div className="empty">Nothing matches “{q}”.</div>}
           </div>
+          </>
+          )}
         </>
       )}
 

@@ -948,3 +948,10 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 .doc-cell > span { min-width: 0; flex: 1; }
 .doc-cell > span > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .doc-cell > svg { flex: none; }
+
+/* ---------- empty state ---------- */
+.empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 28px 20px 40px; animation: rise .2s ease-out; }
+.empty-state img { width: min(300px, 78%); height: auto; margin-bottom: 18px; user-select: none; }
+.empty-state h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; letter-spacing: -.2px; }
+.empty-state p { margin: 0 0 16px; max-width: 380px; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+@media (max-width: 640px) { .empty-state { padding: 18px 8px 32px; } .empty-state img { width: min(240px, 80%); } }
