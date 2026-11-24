@@ -53,6 +53,15 @@ export default function App() {
   const [activeChatId, setActiveChatId] = useState(null)
   const [model, setModelState] = useState(() => localStorage.getItem(MODE_KEY) || 'fast')
   const [collapsed, setCollapsed] = useState(false)
+  // Phones and small tablets: the sidebar becomes a slide-out drawer.
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches)
+  const [navOpen, setNavOpen] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 900px)')
+    const on = () => { setIsMobile(mq.matches); if (!mq.matches) setNavOpen(false) }
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [voiceMin, setVoiceMin] = useState(false)
   // Specialist for the next new chat; an open chat keeps the one it started with.
@@ -61,6 +70,9 @@ export default function App() {
   const cancelRef = useRef(null)
   const chatsRef = useRef(chats)
   chatsRef.current = chats
+
+  // Any navigation from the drawer closes it.
+  useEffect(() => { setNavOpen(false) }, [view, activeChatId, kbGroup, specialist])
 
   const setModel = (m) => { setModelState(m); localStorage.setItem(MODE_KEY, m) }
 
@@ -312,22 +324,26 @@ export default function App() {
   return (
     <BrainContext.Provider value={ctx}>
       <div className="app">
-        <div className={`shell ${collapsed ? 'is-collapsed' : ''}`}>
+        <div className={`shell ${collapsed && !isMobile ? 'is-collapsed' : ''}`}>
+          {isMobile && navOpen && <div className="nav-backdrop" onClick={() => setNavOpen(false)} />}
           <Sidebar
+            mobile={isMobile}
+            mobileOpen={navOpen}
+            onCloseMobile={() => setNavOpen(false)}
             view={view}
-            setView={go}
+            setView={(v) => { setNavOpen(false); go(v) }}
             specialist={activeChat ? activeChat.specialist : specialist}
-            onSpecialist={(id) => newChat(id)}
+            onSpecialist={(id) => { setNavOpen(false); newChat(id) }}
             kbGroup={kbGroup}
             setKbGroup={setKbGroup}
             chats={chats}
             activeChatId={activeChatId}
-            openChat={openChat}
-            newChat={newChat}
+            openChat={(id) => { setNavOpen(false); openChat(id) }}
+            newChat={(sp) => { setNavOpen(false); newChat(sp) }}
             onRenameChat={renameChat}
             onArchiveChat={archiveChat}
             onDeleteChat={removeChat}
-            collapsed={collapsed}
+            collapsed={collapsed && !isMobile}
             setCollapsed={setCollapsed}
           />
           <main className="main">
@@ -336,6 +352,8 @@ export default function App() {
               specialist={view === 'chat' ? activeSpecialist : null}
               onClearSpecialist={() => newChat(null)}
               onProfile={() => go('settings')}
+              onMenu={isMobile ? () => setNavOpen(true) : null}
+              onNewChat={isMobile ? () => newChat(null) : null}
             />
             <div className="main-body">
               {view === 'chat' && (

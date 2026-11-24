@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Search, PanelLeft, SquarePen, BookOpen, KeyRound, History, Settings, ChevronDown, ChevronRight, ArrowRight,
-  MoreHorizontal, Pencil, Archive, Trash2,
+  MoreHorizontal, Pencil, Archive, Trash2, X,
 } from 'lucide-react'
 import { Icon } from './Icon.jsx'
 import { specialists } from '../config.js'
@@ -97,6 +97,7 @@ function ChatRow({ chat, active, onOpen, onRename, onArchive, onDelete }) {
 export default function Sidebar({
   view, setView, kbGroup, setKbGroup, chats, activeChatId, openChat, newChat,
   collapsed, setCollapsed, specialist, onSpecialist, onRenameChat, onArchiveChat, onDeleteChat,
+  mobile, mobileOpen, onCloseMobile,
 }) {
   const { groups: kbGroups } = useBrain()
   const [kbOpen, setKbOpen] = useState(true)
@@ -133,14 +134,16 @@ export default function Sidebar({
   )
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${mobile ? 'mobile' : ''} ${mobileOpen ? 'mobile-open' : ''}`} aria-hidden={mobile && !mobileOpen}>
       <div className="brand-row">
         <button className="brand" onClick={() => newChat()} title="Ardena Brain">
           <img src="/logo.png" alt="Ardena" />
         </button>
         <div className="brand-actions">
           <button className="icon-btn" title="Search chats" onClick={() => setSearching((s) => !s)}><Search size={17} /></button>
-          <button className="icon-btn" title="Collapse sidebar" onClick={() => setCollapsed(true)}><PanelLeft size={17} /></button>
+          {mobile
+            ? <button className="icon-btn" title="Close menu" onClick={onCloseMobile}><X size={18} /></button>
+            : <button className="icon-btn" title="Collapse sidebar" onClick={() => setCollapsed(true)}><PanelLeft size={17} /></button>}
         </div>
       </div>
 
