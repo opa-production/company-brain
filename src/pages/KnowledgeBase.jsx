@@ -114,7 +114,7 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
 
   const remove = async (id) => {
     const doc = docs.find((x) => x.id === id)
-    if (!doc || !window.confirm(`Delete “${doc.title}” from the knowledge base? Brain will stop using it.`)) return
+    if (!doc || !window.confirm(`Delete “${doc.title}” from the knowledge base? Atlas will stop using it.`)) return
     try {
       await api.deleteDocument(id)
       setDocs((d) => d.filter((x) => x.id !== id))
@@ -157,8 +157,8 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
         <div>
           <h2>{isAll ? 'All knowledge' : g ? g.name : 'Knowledge base'}</h2>
           <p className="muted">
-            {isAll ? `Every document Brain can read across your ${fileGroups.length} groups. Click one to read it and see its status.`
-              : g ? <><Lock size={13} /> Visible to: {g.audience}</> : 'Everything Brain knows. Uploads are read and searchable within a minute.'}
+            {isAll ? `Every document Atlas can read across your ${fileGroups.length} groups. Click one to read it and see its status.`
+              : g ? <><Lock size={13} /> Visible to: {g.audience}</> : 'Everything Atlas knows. Uploads are read and searchable within a minute.'}
           </p>
         </div>
         {!isLinks && (
@@ -199,13 +199,13 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
       ) : isLinks ? (
         <>
           <form className="link-form" onSubmit={submitLink}>
-            <input placeholder="https://… a page Brain should read and keep up to date" value={newLink} onChange={(e) => setNewLink(e.target.value)} />
+            <input placeholder="https://… a page Atlas should read and keep up to date" value={newLink} onChange={(e) => setNewLink(e.target.value)} />
             <button className="primary-btn" type="submit" disabled={adding}>{adding ? <Loader size={16} tone="light" /> : <Plus size={16} />} Add link</button>
           </form>
           {links.length === 0 ? (
             <EmptyState
               title="No links yet"
-              text="Paste a web page above, like our website or terms, and Brain will read it and keep it up to date."
+              text="Paste a web page above, like our website or terms, and Atlas will read it and keep it up to date."
             />
           ) : (
           <div className="table">
@@ -237,7 +237,7 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
             >
               <Upload size={20} />
               <div><strong>Drop PDF, Word, PowerPoint or Excel files</strong></div>
-              <div className="muted small">They go to {g ? g.name : 'Company docs'}. Brain will cite them by page.</div>
+              <div className="muted small">They go to {g ? g.name : 'Company docs'}. Atlas will cite them by page.</div>
             </div>
           )}
 
@@ -245,8 +245,8 @@ export default function KnowledgeBase({ group, setGroup, onAsk }) {
             <EmptyState
               title={g ? `Nothing in ${g.name} yet` : isAll && filter !== 'all' ? 'Nothing in this group yet' : 'Your knowledge base is empty'}
               text={isAll
-                ? 'Upload documents and Brain will read them, cite them by page and answer from them.'
-                : 'Drop files in the box above. Brain reads them in about a minute, then answers from them.'}
+                ? 'Upload documents and Atlas will read them, cite them by page and answer from them.'
+                : 'Drop files in the box above. Atlas reads them in about a minute, then answers from them.'}
               action={isAll && (
                 <button className="primary-btn" onClick={() => input.current.click()}>
                   <Upload size={16} /> Upload documents

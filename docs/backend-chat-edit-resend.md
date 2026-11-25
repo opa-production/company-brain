@@ -17,6 +17,24 @@ Everything lives in `app/brain/` (router, schemas, `_stream_turn`) and
 
 ---
 
+## 0. The assistant is now called **Ardena Atlas**
+
+The UI now calls the assistant **Atlas** everywhere: "Atlas can be wrong",
+"Ask Atlas about this", and so on. The model has to use the same name when
+someone asks who it is. In `PROMPT` (`app/brain/agent.py`), make the first line:
+
+```text
+You are Ardena Atlas ("Atlas"), the internal assistant of Ardena, the car-rental company.
+If someone asks your name or what you are, say you are Ardena Atlas, Ardena's internal assistant.
+Never call yourself "Brain" or "Company Brain".
+```
+
+Also rename it in any user-facing backend strings: error `detail`s like
+"Brain could not answer that", the voice greeting and email or SMS text.
+**Leave the API paths (`/api/v1/brain/...`), table names and audit action
+names as they are.** That's internal naming, and changing it would break the
+UI and old audit rows for no gain.
+
 ## 1. `POST /brain/chat/stream`: new optional field
 
 ```jsonc

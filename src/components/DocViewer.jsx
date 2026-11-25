@@ -12,7 +12,7 @@ import { PagesSkeleton } from './Skeletons.jsx'
 export const STAGES = ['Uploaded', 'Extracting text', 'Splitting into passages', 'Indexing', 'Indexed']
 
 // Opens a document: the reader on the left (the original PDF when there is
-// one, otherwise the text Brain extracted) and its ingestion status on the right.
+// one, otherwise the text Atlas extracted) and its ingestion status on the right.
 export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
   const { groups, me } = useBrain()
   const isPdf = doc.kind === 'file' && doc.type === 'pdf'
@@ -67,7 +67,7 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
         </div>
         <div className="viewer-tabs">
           {isPdf && <button className={tab === 'original' ? 'on' : ''} onClick={() => setTab('original')}>Original</button>}
-          <button className={tab === 'text' ? 'on' : ''} onClick={() => setTab('text')}>Text Brain reads</button>
+          <button className={tab === 'text' ? 'on' : ''} onClick={() => setTab('text')}>Text Atlas reads</button>
         </div>
         <button className="icon-btn" onClick={onClose} title="Close (Esc)"><X size={19} /></button>
       </header>
@@ -157,7 +157,7 @@ export default function DocViewer({ doc, onClose, onRetry, onDelete, onAsk }) {
 
           <section className="ds-actions">
             <button className="primary-btn" disabled={doc.status !== 'indexed'} onClick={() => { onClose(); onAsk(`Summarise “${doc.title}”`) }}>
-              <MessageSquareText size={16} /> Ask Brain about this
+              <MessageSquareText size={16} /> Ask Atlas about this
             </button>
             <div className="ds-row">
               {doc.kind === 'link' ? (

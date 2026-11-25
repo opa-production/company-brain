@@ -8,7 +8,7 @@ import { SPEAK_KEY, VOICE_KEY } from '../config.js'
 
 // Hands-free voice loop: listening → thinking → speaking → listening.
 //   listening  record the mic; stop once speech is followed by a pause
-//   thinking   ElevenLabs speech-to-text, then a normal Brain turn (the
+//   thinking   ElevenLabs speech-to-text, then a normal Atlas turn (the
 //              transcript and answer land in the open chat)
 //   speaking   ElevenLabs text-to-speech of the answer
 // The ElevenLabs key never reaches the browser: both calls go through the API.
@@ -128,7 +128,7 @@ export default function VoiceMode({ minimized, specialist, enabled, onExpand, on
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
       } catch {
-        setProblem('Brain needs your microphone. Allow it in the browser and open voice again.')
+        setProblem('Atlas needs your microphone. Allow it in the browser and open voice again.')
         return
       }
       streamRef.current = stream
@@ -155,7 +155,7 @@ export default function VoiceMode({ minimized, specialist, enabled, onExpand, on
 
         const answer = await ask(text)
         if (stopped.current) break
-        if (!answer) { setCaption('Brain couldn’t answer that. Try again.'); continue }
+        if (!answer) { setCaption('Atlas couldn’t answer that. Try again.'); continue }
 
         setPhase('speaking')
         setCaption('')
@@ -219,7 +219,7 @@ export default function VoiceMode({ minimized, specialist, enabled, onExpand, on
         <div className="voice-stage">
           <VoiceVisualizer phase={phase} muted={muted || !!problem} size={420} />
           <div className="voice-bot">
-            <img src="/ai.png" alt="Ardena Brain" draggable="false" />
+            <img src="/ai.png" alt="Ardena Atlas" draggable="false" />
           </div>
         </div>
         <div className="voice-status">

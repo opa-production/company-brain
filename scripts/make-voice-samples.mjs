@@ -27,7 +27,7 @@ function findKey() {
 const key = findKey().trim()
 
 const line = (v) =>
-  `Hi, I'm ${v.name}, your Ardena Brain voice. Ask me about bookings, the pitch deck or our KRA details, and I'll answer like this.`
+  `Hi, I'm ${v.name}, your Ardena Atlas voice. Ask me about bookings, the pitch deck or our KRA details, and I'll answer like this.`
 
 mkdirSync('public/voices', { recursive: true })
 for (const v of VOICES) {

@@ -109,7 +109,7 @@ export function FactsPage() {
   }
 
   const remove = async (f) => {
-    if (!window.confirm(`Delete “${f.label}”? Brain will stop quoting it.`)) return
+    if (!window.confirm(`Delete “${f.label}”? Atlas will stop quoting it.`)) return
     try {
       await api.deleteFact(f.key)
       setFacts((all) => all.filter((x) => x.key !== f.key))
@@ -127,7 +127,7 @@ export function FactsPage() {
   if (!facts) {
     return (
       <div className="page">
-        <div className="page-head"><div><h2>Company facts</h2><p className="muted">Exact values Brain quotes word for word: registration numbers, PINs, certificates.</p></div></div>
+        <div className="page-head"><div><h2>Company facts</h2><p className="muted">Exact values Atlas quotes word for word: registration numbers, PINs, certificates.</p></div></div>
         {error ? <div className="notice bad">{error}</div> : <FactsSkeleton />}
       </div>
     )
@@ -141,7 +141,7 @@ export function FactsPage() {
       <div className="page-head">
         <div>
           <h2>Company facts</h2>
-          <p className="muted">Exact values Brain quotes word for word: registration numbers, PINs, certificates. Restricted values are masked, and every reveal is logged.</p>
+          <p className="muted">Exact values Atlas quotes word for word: registration numbers, PINs, certificates. Restricted values are masked, and every reveal is logged.</p>
         </div>
         {canEdit && editing !== 'new' && <button className="primary-btn" onClick={() => setEditing('new')}><Plus size={16} /> Add fact</button>}
       </div>
@@ -157,7 +157,7 @@ export function FactsPage() {
 
       {facts.length === 0 && editing !== 'new' && (
         <div className="empty">
-          No company facts yet.{canEdit ? ' Add the registration number, KRA PIN and the like so Brain can quote them exactly.' : ' A super or general admin can add them.'}
+          No company facts yet.{canEdit ? ' Add the registration number, KRA PIN and the like so Atlas can quote them exactly.' : ' A super or general admin can add them.'}
         </div>
       )}
 
@@ -332,7 +332,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
   }
 
   const everywhere = async () => {
-    if (!window.confirm('Sign out of Ardena Brain on every device, including this one?')) return
+    if (!window.confirm('Sign out of Ardena Atlas on every device, including this one?')) return
     setBusy(true)
     try { await api.logoutEverywhere() } catch { /* signed out regardless */ }
     onLoggedOutEverywhere()
@@ -373,7 +373,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
 
   return (
     <div className="page settings-page">
-      <div className="page-head"><div><h2>Settings</h2><p className="muted">Your profile, how Brain answers, its voice and your session.</p></div></div>
+      <div className="page-head"><div><h2>Settings</h2><p className="muted">Your profile, how Atlas answers, its voice and your session.</p></div></div>
 
       <div className="settings-grid">
         <div className="settings-col">
@@ -412,7 +412,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
               <div className="set-row stack">
                 <div className="set-text">
                   <div className="set-label">Knowledge you can read <span className="set-count">{me.groups.length}</span></div>
-                  <div className="set-hint">Brain always searches these when it answers you.</div>
+                  <div className="set-hint">Atlas always searches these when it answers you.</div>
                 </div>
                 <div className="group-tags">
                   {me.groups.map((g) => <span key={g.key} className="group-tag">{g.name}</span>)}
@@ -453,7 +453,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
             <div className="sc-body">
               {me.voice_enabled ? (
                 <>
-                  <p className="muted small voice-intro">Pick how Brain sounds in voice mode. Press play to hear a short sample.</p>
+                  <p className="muted small voice-intro">Pick how Atlas sounds in voice mode. Press play to hear a short sample.</p>
                   {['female', 'male'].map((gender) => (
                     <div className="voice-group" key={gender}>
                       <div className="voice-group-label">{gender === 'female' ? "Women's voices" : "Men's voices"}</div>
@@ -500,7 +500,7 @@ export function AuditPage() {
   return (
     <div className="page">
       <div className="page-head">
-        <div><h2>Audit log</h2><p className="muted">Everything people have done in Brain, newest first.</p></div>
+        <div><h2>Audit log</h2><p className="muted">Everything people have done in Atlas, newest first.</p></div>
         <div className="audit-filter">
           <Select
             value={action}

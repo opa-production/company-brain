@@ -62,7 +62,7 @@ const AssistantMessage = memo(function AssistantMessage({ msg, actions }) {
         {msg.content && <div ref={body}><Markdown text={msg.content} /></div>}
         {failed && (
           <div className="msg-error">
-            {msg.error || 'Brain could not answer that.'}
+            {msg.error || 'Atlas could not answer that.'}
             <button className="link-btn" onClick={() => actions.current.retry(msg.id)}><RotateCcw size={13} /> Try again</button>
           </div>
         )}
@@ -138,7 +138,7 @@ const UserMessage = memo(function UserMessage({ msg, busy, actions }) {
             }}
           />
           <div className="bubble-edit-row">
-            <span className="muted small">Brain answers again from here. Later messages are replaced.</span>
+            <span className="muted small">Atlas answers again from here. Later messages are replaced.</span>
             <button className="ghost-btn sm" onClick={() => setEditing(false)}>Cancel</button>
             <button className="primary-btn sm" onClick={save} disabled={busy || !draft.trim()}>Send</button>
           </div>
@@ -237,7 +237,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
       </div>
       <div className="chat-composer">
         <Composer onSend={onSend} busy={busy} onStop={onStop} onVoice={onVoice} compact model={model} setModel={setModel} placeholder={specialist?.placeholder} />
-        <div className="legal">Brain can be wrong. Check important facts against the cited source.</div>
+        <div className="legal">Atlas can be wrong. Check important facts against the cited source.</div>
       </div>
     </div>
   )

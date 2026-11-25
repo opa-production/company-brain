@@ -179,7 +179,7 @@ export default function Sidebar({
   return (
     <aside className={`sidebar ${mobile ? 'mobile' : ''} ${mobileOpen ? 'mobile-open' : ''}`} aria-hidden={mobile && !mobileOpen}>
       <div className="brand-row">
-        <button className="brand" onClick={() => newChat()} title="Ardena Brain">
+        <button className="brand" onClick={() => newChat()} title="Ardena Atlas">
           <img src="/logo.png" alt="Ardena" />
         </button>
         <div className="brand-actions">

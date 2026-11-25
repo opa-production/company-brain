@@ -16,7 +16,7 @@ export default function Topbar({ title, specialist, onClearSpecialist, onProfile
           <span className="spec-chip" title={specialist.tagline}>
             <Icon name={specialist.icon} size={14} />
             <span className="spec-chip-text">{specialist.name} specialist</span>
-            <button onClick={onClearSpecialist} title="Back to general Brain"><X size={13} /></button>
+            <button onClick={onClearSpecialist} title="Back to general Atlas"><X size={13} /></button>
           </span>
         )}
       </div>

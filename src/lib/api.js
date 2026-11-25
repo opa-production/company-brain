@@ -157,7 +157,7 @@ export const deleteConversation = (id) => request(`/brain/conversations/${id}`, 
 export const feedback = (messageId, value) => request(`/brain/messages/${messageId}/feedback`, { method: 'POST', body: { value } })
 
 /**
- * Ask Brain. Streams the answer as server-sent events:
+ * Ask Atlas. Streams the answer as server-sent events:
  *   onMeta({conversation_id, title, specialist, user_message_id})  first
  *   onStep(label)                                 "Thinking", "Searching Finance & tax", "Reading …", "Writing"
  *   onSources(sources)                            cumulative [{document_id, title, group_name, where}]
@@ -185,14 +185,14 @@ export function streamChat({ message, conversationId, specialist, mode, spoken =
         signal: ctrl.signal,
       })
     } catch (e) {
-      if (e.name !== 'AbortError') h.onError({ detail: "Couldn't reach Brain. Check your connection.", status: 0 })
+      if (e.name !== 'AbortError') h.onError({ detail: "Couldn't reach Atlas. Check your connection.", status: 0 })
       return
     }
     if (!res.ok) {
       let detail
       try { detail = (await res.json()).detail } catch { /* */ }
       if (res.status === 401) { setToken(null); onSignedOut(detail) }
-      h.onError({ detail: detail || 'Brain could not answer that.', status: res.status })
+      h.onError({ detail: detail || 'Atlas could not answer that.', status: res.status })
       return
     }
 

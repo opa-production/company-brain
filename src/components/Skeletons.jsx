@@ -7,7 +7,7 @@ const widths = ['72%', '54%', '86%', '63%', '78%', '48%', '69%', '58%']
 export function AppSkeleton() {
   return (
     <div className="app">
-      <div className="shell sk-shell" aria-busy="true" aria-label="Loading Ardena Brain">
+      <div className="shell sk-shell" aria-busy="true" aria-label="Loading Ardena Atlas">
         <aside className="sidebar sk-side">
           <Line w={110} h={22} style={{ marginBottom: 22 }} />
           <Line h={38} r={6} style={{ marginBottom: 20 }} />
