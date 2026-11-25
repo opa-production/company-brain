@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Pencil, RefreshCw, Volume2, Square } from 'lucide-react'
+import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Pencil, RefreshCw, Volume2, Square, Mail, Bookmark, BookmarkCheck, X, Send } from 'lucide-react'
+import * as api from '../lib/api.js'
 import Loader from '../components/Loader.jsx'
 import { toggleReading, useReadAloud } from '../lib/readAloud.js'
 import Composer from '../components/Composer.jsx'
@@ -79,7 +80,127 @@ function ReadAloudError({ msg }) {
   return r.errorId === msg.id && r.error ? <div className="msg-note">{r.error}</div> : null
 }
 
-const AssistantMessage = memo(function AssistantMessage({ msg, actions, canSpeak }) {
+// What Atlas did with memory during this answer: saved (with Undo), suggested
+// ("Remember this?" → Save / Dismiss) or forgotten.
+function MemoryChips({ msg, actions }) {
+  const [state, setState] = useState({}) // index → 'saving' | 'saved' | 'dismissed' | 'undone' | {error}
+  const set = (i, v) => setState((s) => ({ ...s, [i]: v }))
+  const items = msg.memory || []
+  if (!items.length) return null
+
+  const save = async (i, m) => {
+    set(i, 'saving')
+    try {
+      const saved = await api.addMemory({ content: m.content, scope: m.scope, conversationId: actions.current.conversationId })
+      set(i, { saved: saved.id })
+    } catch (e) { set(i, { error: e.detail || "Couldn't save that." }) }
+  }
+  const undo = async (i, id) => {
+    set(i, 'saving')
+    try { await api.deleteMemory(id); set(i, 'undone') } catch (e) { set(i, { error: e.detail || "Couldn't undo that." }) }
+  }
+  const scopeLabel = (m) => (m.scope === 'team' ? 'team memory' : 'your memory')
+
+  return (
+    <div className="memory-chips">
+      {items.map((m, i) => {
+        const st = state[i]
+        if (st === 'dismissed') return null
+        if (st?.error) return <div key={i} className="memory-chip"><span className="muted">{st.error}</span></div>
+        if (m.deleted) return <div key={i} className="memory-chip"><Bookmark size={13} /> Removed from memory</div>
+        if (st === 'undone') return <div key={i} className="memory-chip muted"><Bookmark size={13} /> Not saved</div>
+        const savedId = m.saved ? m.id : st?.saved
+        if (savedId) {
+          return (
+            <div key={i} className="memory-chip on" title={m.content}>
+              <BookmarkCheck size={13} /> Saved to {scopeLabel(m)}
+              <button className="link-btn" onClick={() => undo(i, savedId)} disabled={st === 'saving'}>Undo</button>
+            </div>
+          )
+        }
+        return (
+          <div key={i} className="memory-chip suggest">
+            <Bookmark size={13} />
+            <span className="memory-text">Remember this? <span className="muted">“{m.content}”</span></span>
+            <button className="primary-btn xs" onClick={() => save(i, m)} disabled={st === 'saving'}>
+              {st === 'saving' ? <Loader size={12} /> : 'Save'}
+            </button>
+            <button className="icon-btn xs" title="Dismiss" onClick={() => set(i, 'dismissed')}><X size={13} /></button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Email this answer (with its question) to the team inbox or admins.
+let recipientsCache = null
+function EmailPanel({ msg, onClose }) {
+  const { me } = useBrain()
+  const [people, setPeople] = useState(recipientsCache)
+  const [to, setTo] = useState(() => new Set([me.team_inbox].filter(Boolean)))
+  const [subject, setSubject] = useState('')
+  const [note, setNote] = useState('')
+  const [phase, setPhase] = useState('idle') // idle | sending | sent
+  const [error, setError] = useState('')
+  const [sentTo, setSentTo] = useState([])
+
+  useEffect(() => {
+    if (recipientsCache) return
+    api.emailRecipients()
+      .then((list) => { recipientsCache = list; setPeople(list) })
+      .catch((e) => setError(e.detail || "Couldn't load who Atlas can email."))
+  }, [])
+
+  const toggle = (email) => setTo((s) => { const n = new Set(s); n.has(email) ? n.delete(email) : n.add(email); return n })
+  const send = async () => {
+    setPhase('sending'); setError('')
+    try {
+      const r = await api.emailAnswer(msg.serverId, { to: [...to], subject: subject.trim(), note: note.trim() })
+      setSentTo(r.to); setPhase('sent')
+    } catch (e) { setError(e.detail || "Email didn't go out. Try again."); setPhase('idle') }
+  }
+
+  if (phase === 'sent') {
+    return (
+      <div className="email-panel sent">
+        <Check size={15} /> Emailed to {sentTo.join(', ')}
+        <button className="icon-btn xs" title="Close" onClick={onClose}><X size={13} /></button>
+      </div>
+    )
+  }
+  return (
+    <div className="email-panel">
+      <div className="email-head">
+        <span className="set-label"><Mail size={14} /> Email this answer</span>
+        <button className="icon-btn xs" title="Close" onClick={onClose}><X size={13} /></button>
+      </div>
+      {!people && !error && <div className="muted small"><Loader size={12} /> Loading…</div>}
+      {people && (
+        <div className="email-to">
+          {people.map((p) => (
+            <label key={p.email} className={`email-person ${to.has(p.email) ? 'on' : ''}`}>
+              <input type="checkbox" checked={to.has(p.email)} onChange={() => toggle(p.email)} />
+              <span>{p.name}</span> <span className="muted small">{p.email}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      <input className="input" placeholder="Subject (defaults to the chat title)" value={subject} maxLength={150} onChange={(e) => setSubject(e.target.value)} />
+      <textarea className="input" rows={2} placeholder="Add a note (optional)" value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} />
+      {error && <div className="msg-note">{error}</div>}
+      <div className="email-foot">
+        <span className="muted small">Sent from Atlas with you as Reply-To. Only the team inbox and admins.</span>
+        <button className="primary-btn sm" onClick={send} disabled={phase === 'sending' || !to.size}>
+          {phase === 'sending' ? <Loader size={13} /> : <Send size={14} />} Send
+        </button>
+      </div>
+    </div>
+  )
+}
+
+const AssistantMessage = memo(function AssistantMessage({ msg, actions, canSpeak, canEmail }) {
+  const [emailing, setEmailing] = useState(false)
   const [copied, flash] = useFlash()
   const body = useRef(null)
   const vote = msg.feedback === 1 ? 'up' : msg.feedback === -1 ? 'down' : null
@@ -123,6 +244,9 @@ const AssistantMessage = memo(function AssistantMessage({ msg, actions, canSpeak
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
             {canSpeak && msg.content && <ReadAloudButton msg={msg} />}
+            {canEmail && msg.serverId && msg.content && (
+              <button className={`icon-btn sm ${emailing ? 'on' : ''}`} title="Email this answer" onClick={() => setEmailing(!emailing)}><Mail size={15} /></button>
+            )}
             {msg.serverId && <>
               <button className={`icon-btn sm ${vote === 'up' ? 'on' : ''}`} onClick={() => actions.current.rate(msg, vote === 'up' ? 0 : 1)} title="Good answer"><ThumbsUp size={15} /></button>
               <button className={`icon-btn sm ${vote === 'down' ? 'on' : ''}`} onClick={() => actions.current.rate(msg, vote === 'down' ? 0 : -1)} title="Bad answer"><ThumbsDown size={15} /></button>
@@ -131,6 +255,8 @@ const AssistantMessage = memo(function AssistantMessage({ msg, actions, canSpeak
           </div>
         )}
         {done && canSpeak && <ReadAloudError msg={msg} />}
+        {done && emailing && <EmailPanel msg={msg} onClose={() => setEmailing(false)} />}
+        {msg.memory?.length > 0 && <MemoryChips msg={msg} actions={actions} />}
       </div>
     </div>
   )
@@ -204,6 +330,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
   const last = messages[messages.length - 1]
   const { me } = useBrain()
   const canSpeak = !!me?.voice_enabled
+  const canEmail = !!me?.email_enabled
   const speakProps = canSpeak ? { autoRead, setAutoRead } : {}
   // A new greeting each time the home screen opens, picked for the time of day.
   const hello = useMemo(() => greeting(me?.user?.name), [chat?.id, specialist?.id, me?.user?.name]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -211,7 +338,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
   // One stable object for the message rows, so memoised rows don't re-render
   // just because the parent handed down fresh callbacks.
   const actions = useRef({})
-  actions.current = { retry: onRetry, rate: onRate, resend: onResend }
+  actions.current = { retry: onRetry, rate: onRate, resend: onResend, conversationId: chat?.serverId ?? null }
 
   // Follow the answer while it streams, unless the reader has scrolled up.
   const onScroll = () => {
@@ -250,7 +377,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
           {messages.map((m) =>
             m.role === 'user'
               ? <UserMessage key={m.id} msg={m} busy={busy} actions={actions} />
-              : <AssistantMessage key={m.id} msg={m} actions={actions} canSpeak={canSpeak} />,
+              : <AssistantMessage key={m.id} msg={m} actions={actions} canSpeak={canSpeak} canEmail={canEmail} />,
           )}
         </div>
       </div>

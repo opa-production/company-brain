@@ -177,6 +177,8 @@ export default function App() {
         },
         onStep: (label) => patchMsg(chatId, aId, (m) => ({ ...m, steps: m.steps.at(-1) === label ? m.steps : [...m.steps, label] })),
         onSources: (sources) => patchMsg(chatId, aId, (m) => ({ ...m, sources })),
+        // Saved, suggested ("Remember this?") or forgotten: shown as chips under the answer.
+        onMemory: (mem) => patchMsg(chatId, aId, (m) => ({ ...m, memory: [...(m.memory || []), mem] })),
         onToken: (tok) => {
           answer += tok
           pending += tok

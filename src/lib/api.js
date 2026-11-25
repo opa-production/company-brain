@@ -200,13 +200,14 @@ export const feedback = (messageId, value) => request(`/brain/messages/${message
  *   onStep(label)                                 "Thinking", "Searching Finance & tax", "Reading …", "Writing"
  *   onSources(sources)                            cumulative [{document_id, title, group_name, where}]
  *   onToken(text)
+ *   onMemory({id, scope, content, saved} | {id, deleted})  saved, suggested or forgotten
  *   onDone({conversation_id, message_id, steps, sources, out_of_scope})
  *   onError({detail, status})
  * Returns a cancel function (the Stop button).
  */
 export function streamChat({ message, conversationId, specialist, mode, spoken = false, replaceFrom = null }, handlers) {
   const ctrl = new AbortController()
-  const h = { onMeta() {}, onStep() {}, onSources() {}, onToken() {}, onDone() {}, onError() {}, ...handlers }
+  const h = { onMeta() {}, onStep() {}, onSources() {}, onToken() {}, onMemory() {}, onDone() {}, onError() {}, ...handlers }
 
   ;(async () => {
     let res
@@ -255,6 +256,7 @@ export function streamChat({ message, conversationId, specialist, mode, spoken =
           else if (ev === 'status') h.onStep(p.label)
           else if (ev === 'sources') h.onSources(p.sources)
           else if (ev === 'token') h.onToken(p.text)
+          else if (ev === 'memory') h.onMemory(p)
           else if (ev === 'done') h.onDone(p)
           else if (ev === 'error') h.onError(p)
         }
@@ -280,6 +282,26 @@ export async function speak(text, voice) {
   const res = await request('/brain/voice/speak', { method: 'POST', body: { text, voice: voice || null }, raw: true })
   return URL.createObjectURL(await res.blob())
 }
+
+// ---------------------------------------------------------------- memory
+
+/** { personal: [Memory], team: [Memory], personal_limit, team_limit } */
+export const memories = () => request('/brain/memories')
+export const addMemory = ({ content, scope = 'personal', conversationId = null }) =>
+  request('/brain/memories', { method: 'POST', body: { content, scope, conversation_id: conversationId } })
+export const updateMemory = (id, content) => request(`/brain/memories/${id}`, { method: 'PATCH', body: { content } })
+export const deleteMemory = (id) => request(`/brain/memories/${id}`, { method: 'DELETE' })
+
+// ---------------------------------------------------------------- email
+
+/** Who Atlas can email: [{email, name}], the team inbox first. */
+export const emailRecipients = () => request('/brain/email/recipients')
+/** Email one answer (with its question). No `to` = the team inbox. → {sent, to} */
+export const emailAnswer = (messageId, { to, subject, note } = {}) =>
+  request(`/brain/messages/${messageId}/email`, {
+    method: 'POST',
+    body: { to: to?.length ? to : null, subject: subject || null, note: note || null },
+  })
 
 // ---------------------------------------------------------------- super admin
 

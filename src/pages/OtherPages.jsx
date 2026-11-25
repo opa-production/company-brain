@@ -295,6 +295,111 @@ export function HistoryPage({ chats, openChat, removeChat, archiveChat, onRestor
   )
 }
 
+// Settings → Memory: the notes Atlas uses in every chat. Personal ones are
+// only yours; team ones every admin's Atlas uses.
+function MemoryRow({ m, onChanged, onDeleted }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(m.content)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const save = async () => {
+    setBusy(true); setError('')
+    try { onChanged(await api.updateMemory(m.id, draft.trim())); setEditing(false) } catch (e) { setError(e.detail || "Couldn't save that.") }
+    setBusy(false)
+  }
+  const remove = async () => {
+    if (!window.confirm('Delete this memory? Atlas will stop using it.')) return
+    setBusy(true)
+    try { await api.deleteMemory(m.id); onDeleted(m.id) } catch (e) { setError(e.detail || "Couldn't delete that."); setBusy(false) }
+  }
+  return (
+    <li className="memory-item">
+      <div className="memory-body">
+        {editing
+          ? <textarea className="input" rows={2} maxLength={500} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
+          : <div>{m.content}</div>}
+        <div className="memory-meta">
+          {m.scope === 'team' && m.created_by ? `${m.created_by} · ` : ''}{dayLabel(m.updated_at)}
+        </div>
+        {error && <div className="msg-note">{error}</div>}
+      </div>
+      {m.can_edit && (editing ? (
+        <span className="row-actions">
+          <button className="ghost-btn sm" onClick={() => { setEditing(false); setDraft(m.content) }} disabled={busy}>Cancel</button>
+          <button className="primary-btn sm" onClick={save} disabled={busy || !draft.trim()}>Save</button>
+        </span>
+      ) : (
+        <span className="row-actions">
+          <button className="icon-btn sm" title="Edit" onClick={() => setEditing(true)} disabled={busy}><Pencil size={14} /></button>
+          <button className="icon-btn sm" title="Delete" onClick={remove} disabled={busy}><Trash2 size={14} /></button>
+        </span>
+      ))}
+    </li>
+  )
+}
+
+function MemoryCard() {
+  const [data, setData] = useState(null)
+  const [error, setError] = useState('')
+  const [draft, setDraft] = useState('')
+  const [scope, setScope] = useState('personal')
+  const [adding, setAdding] = useState(false)
+
+  useEffect(() => {
+    api.memories().then(setData).catch((e) => setError(e.status === 404 ? "Memory isn't switched on yet." : e.detail || "Couldn't load memory."))
+  }, [])
+
+  const replace = (m) => setData((d) => ({ ...d, [m.scope]: d[m.scope].map((x) => (x.id === m.id ? m : x)) }))
+  const drop = (id) => setData((d) => ({ ...d, personal: d.personal.filter((x) => x.id !== id), team: d.team.filter((x) => x.id !== id) }))
+  const add = async (e) => {
+    e.preventDefault()
+    if (!draft.trim()) return
+    setAdding(true); setError('')
+    try {
+      const m = await api.addMemory({ content: draft.trim(), scope })
+      setData((d) => ({ ...d, [m.scope]: [m, ...d[m.scope].filter((x) => x.id !== m.id)] }))
+      setDraft('')
+    } catch (err) { setError(err.detail || "Couldn't save that.") }
+    setAdding(false)
+  }
+
+  const group = (key, label, hint, limit) => (
+    <div className="memory-group">
+      <div className="memory-group-label"><span>{label}</span><span>{data[key].length}/{limit}</span></div>
+      {data[key].length
+        ? <ul className="memory-list">{data[key].map((m) => <MemoryRow key={m.id} m={m} onChanged={replace} onDeleted={drop} />)}</ul>
+        : <div className="muted small">{hint}</div>}
+    </div>
+  )
+
+  return (
+    <section className="settings-card">
+      <header className="sc-head">Memory</header>
+      <div className="sc-body">
+        <p className="muted small voice-intro">
+          Atlas uses these in every chat. Say “remember …” in a chat, or add one here. Team notes are shared with every admin.
+          Don't put PINs, passwords or bank details here; use Company facts.
+        </p>
+        {!data && !error && <div className="muted small"><Loader size={12} /> Loading…</div>}
+        {data && <>
+          {group('personal', 'About you', 'Nothing yet. Try “Remember that I handle B2B partnerships.”', data.personal_limit)}
+          {group('team', 'Team', 'No team notes yet.', data.team_limit)}
+          <form className="memory-add" onSubmit={add}>
+            <input className="input" placeholder="Add a memory…" value={draft} maxLength={500} onChange={(e) => setDraft(e.target.value)} />
+            <div className="seg" role="radiogroup" aria-label="Memory scope">
+              {[['personal', 'Me'], ['team', 'Team']].map(([k, l]) => (
+                <button type="button" key={k} role="radio" aria-checked={scope === k} className={scope === k ? 'on' : ''} onClick={() => setScope(k)}>{l}</button>
+              ))}
+            </div>
+            <button className="primary-btn sm" type="submit" disabled={adding || !draft.trim()}><Plus size={14} /> Add</button>
+          </form>
+        </>}
+        {error && <div className="msg-note">{error}</div>}
+      </div>
+    </section>
+  )
+}
+
 export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel, onAudit }) {
   const { me } = useBrain()
   const user = me.user
@@ -466,6 +571,8 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
               )}
             </div>
           </section>
+
+          <MemoryCard />
         </div>
       </div>
     </div>
