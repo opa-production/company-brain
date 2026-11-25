@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Pencil, RefreshCw } from 'lucide-react'
 import Composer from '../components/Composer.jsx'
 import Orb from '../components/Orb.jsx'
 import { Icon } from '../components/Icon.jsx'
-import { Markdown } from '../lib/markdown.jsx'
+import { Markdown, copyAnswer } from '../lib/markdown.jsx'
 import { greeting } from '../lib/greeting.js'
 import { useBrain } from '../lib/brain.jsx'
 import { ChatSkeleton } from '../components/Skeletons.jsx'
@@ -15,6 +15,14 @@ function Working({ label }) {
       <span className="shimmer">{label}…</span>
     </div>
   )
+}
+
+// A small "copied" tick that clears itself.
+function useFlash() {
+  const [on, setOn] = useState(false)
+  const t = useRef(null)
+  useEffect(() => () => clearTimeout(t.current), [])
+  return [on, () => { setOn(true); clearTimeout(t.current); t.current = setTimeout(() => setOn(false), 1400) }]
 }
 
 function ThoughtFor({ msg }) {
@@ -37,8 +45,9 @@ function ThoughtFor({ msg }) {
   )
 }
 
-function AssistantMessage({ msg, onRetry, onRate }) {
-  const [copied, setCopied] = useState(false)
+const AssistantMessage = memo(function AssistantMessage({ msg, actions }) {
+  const [copied, flash] = useFlash()
+  const body = useRef(null)
   const vote = msg.feedback === 1 ? 'up' : msg.feedback === -1 ? 'down' : null
   const working = msg.status === 'working'
   const failed = msg.status === 'error'
@@ -50,11 +59,11 @@ function AssistantMessage({ msg, onRetry, onRate }) {
       <div className="msg-body">
         {!working && <ThoughtFor msg={msg} />}
         {working && <Working label={msg.steps[msg.steps.length - 1] || 'Thinking'} />}
-        {msg.content && <Markdown text={msg.content} />}
+        {msg.content && <div ref={body}><Markdown text={msg.content} /></div>}
         {failed && (
           <div className="msg-error">
             {msg.error || 'Brain could not answer that.'}
-            <button className="link-btn" onClick={onRetry}><RotateCcw size={13} /> Try again</button>
+            <button className="link-btn" onClick={() => actions.current.retry(msg.id)}><RotateCcw size={13} /> Try again</button>
           </div>
         )}
         {done && msg.outOfScope?.length > 0 && (
@@ -74,39 +83,108 @@ function AssistantMessage({ msg, onRetry, onRate }) {
           <div className="msg-actions">
             <button
               className="icon-btn sm"
-              title="Copy"
-              onClick={() => {
-                navigator.clipboard?.writeText(msg.content)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 1500)
-              }}
+              title={copied ? 'Copied' : 'Copy answer'}
+              onClick={() => { copyAnswer(msg.content, body.current?.firstChild); flash() }}
             >
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
             {msg.serverId && <>
-              <button className={`icon-btn sm ${vote === 'up' ? 'on' : ''}`} onClick={() => onRate(msg, vote === 'up' ? 0 : 1)} title="Good answer"><ThumbsUp size={15} /></button>
-              <button className={`icon-btn sm ${vote === 'down' ? 'on' : ''}`} onClick={() => onRate(msg, vote === 'down' ? 0 : -1)} title="Bad answer"><ThumbsDown size={15} /></button>
+              <button className={`icon-btn sm ${vote === 'up' ? 'on' : ''}`} onClick={() => actions.current.rate(msg, vote === 'up' ? 0 : 1)} title="Good answer"><ThumbsUp size={15} /></button>
+              <button className={`icon-btn sm ${vote === 'down' ? 'on' : ''}`} onClick={() => actions.current.rate(msg, vote === 'down' ? 0 : -1)} title="Bad answer"><ThumbsDown size={15} /></button>
             </>}
-            <button className="icon-btn sm" onClick={onRetry} title="Retry"><RotateCcw size={15} /></button>
+            <button className="icon-btn sm" onClick={() => actions.current.retry(msg.id)} title="Retry"><RotateCcw size={15} /></button>
           </div>
         )}
       </div>
     </div>
   )
-}
+})
 
-export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoice, onRetry, onRate, model, setModel }) {
+const UserMessage = memo(function UserMessage({ msg, busy, actions }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(msg.content)
+  const [copied, flash] = useFlash()
+  const ta = useRef(null)
+
+  useLayoutEffect(() => {
+    if (!editing || !ta.current) return
+    ta.current.style.height = 'auto'
+    ta.current.style.height = Math.min(ta.current.scrollHeight, 260) + 'px'
+  }, [editing, draft])
+
+  const startEdit = () => {
+    setDraft(msg.content)
+    setEditing(true)
+    requestAnimationFrame(() => { const el = ta.current; if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length) } })
+  }
+  const save = () => {
+    const t = draft.trim()
+    if (!t || busy) return
+    setEditing(false)
+    actions.current.resend(msg.id, t)
+  }
+
+  if (editing) {
+    return (
+      <div className="msg user editing">
+        <div className="bubble-edit">
+          <textarea
+            ref={ta}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); save() }
+              if (e.key === 'Escape') setEditing(false)
+            }}
+          />
+          <div className="bubble-edit-row">
+            <span className="muted small">Brain answers again from here. Later messages are replaced.</span>
+            <button className="ghost-btn sm" onClick={() => setEditing(false)}>Cancel</button>
+            <button className="primary-btn sm" onClick={save} disabled={busy || !draft.trim()}>Send</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="msg user">
+      <div className="bubble">{msg.content}</div>
+      <div className="user-actions">
+        <button className="icon-btn sm" title={copied ? 'Copied' : 'Copy question'} onClick={() => { navigator.clipboard?.writeText(msg.content); flash() }}>
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+        <button className="icon-btn sm" title="Edit question" onClick={startEdit} disabled={busy}><Pencil size={14} /></button>
+        <button className="icon-btn sm" title="Ask again" onClick={() => actions.current.resend(msg.id, msg.content)} disabled={busy}><RefreshCw size={14} /></button>
+      </div>
+    </div>
+  )
+})
+
+export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoice, onRetry, onRate, onResend, model, setModel }) {
   const scroller = useRef(null)
+  const stick = useRef(true)
   const messages = chat?.messages || []
   const last = messages[messages.length - 1]
   const { me } = useBrain()
   // A new greeting each time the home screen opens, picked for the time of day.
   const hello = useMemo(() => greeting(me?.user?.name), [chat?.id, specialist?.id, me?.user?.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  // One stable object for the message rows, so memoised rows don't re-render
+  // just because the parent handed down fresh callbacks.
+  const actions = useRef({})
+  actions.current = { retry: onRetry, rate: onRate, resend: onResend }
+
+  // Follow the answer while it streams, unless the reader has scrolled up.
+  const onScroll = () => {
     const el = scroller.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [messages.length, last?.content, last?.steps?.length])
+    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+  }
+  useEffect(() => { stick.current = true }, [chat?.id, messages.length])
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (el && stick.current) el.scrollTop = el.scrollHeight
+  }, [messages.length, last?.content, last?.steps?.length, last?.status])
 
   if (chat && chat.messages === null) {
     return <ChatSkeleton />
@@ -148,14 +226,12 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
 
   return (
     <div className="chat">
-      <div className="chat-scroll" ref={scroller}>
+      <div className="chat-scroll" ref={scroller} onScroll={onScroll}>
         <div className="thread">
           {messages.map((m) =>
-            m.role === 'user' ? (
-              <div key={m.id} className="msg user"><div className="bubble">{m.content}</div></div>
-            ) : (
-              <AssistantMessage key={m.id} msg={m} onRetry={() => onRetry(m.id)} onRate={onRate} />
-            ),
+            m.role === 'user'
+              ? <UserMessage key={m.id} msg={m} busy={busy} actions={actions} />
+              : <AssistantMessage key={m.id} msg={m} actions={actions} />,
           )}
         </div>
       </div>

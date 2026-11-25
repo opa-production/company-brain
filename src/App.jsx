@@ -31,7 +31,7 @@ const fromSummary = (c) => ({
 
 const fromServerMessage = (m) =>
   m.role === 'user'
-    ? { id: `m${m.id}`, role: 'user', content: m.content }
+    ? { id: `m${m.id}`, serverId: m.id, role: 'user', content: m.content }
     : {
         id: `m${m.id}`,
         serverId: m.id,
@@ -127,7 +127,10 @@ export default function App() {
     patchChat(chatId, (c) => ({ ...c, messages: (c.messages || []).map((m) => (m.id === msgId ? fn(m) : m)) }))
 
   // `spoken`: asked in voice mode, so Brain answers in plain talk to be read aloud.
-  const startTurn = (chatId, prompt, { onAnswer, spoken = false } = {}) => {
+  // `replaceFrom`: server id of a user message; the server drops it and every
+  // later message before answering (edit, ask again, retry).
+  // `userId`: local id of the question, to record its server id from `meta`.
+  const startTurn = (chatId, prompt, { onAnswer, spoken = false, replaceFrom = null, userId = null } = {}) => {
     const chat = chatsRef.current.find((c) => c.id === chatId)
     const aId = uid('a')
     patchChat(chatId, (c) => ({
@@ -136,21 +139,40 @@ export default function App() {
     }))
     setBusy(true)
     let answer = ''
+    // Tokens arrive far faster than the screen redraws. Collect them and
+    // paint once per frame instead of re-rendering the app for every token.
+    let pending = ''
+    let frame = 0
+    const flush = () => {
+      if (frame) cancelAnimationFrame(frame)
+      frame = 0
+      if (!pending) return
+      const text = pending
+      pending = ''
+      patchMsg(chatId, aId, (m) => ({ ...m, status: m.status === 'stopped' ? m.status : 'streaming', content: m.content + text, finishedAt: m.finishedAt || Date.now() }))
+    }
     const finish = () => { setBusy(false); cancelRef.current = null }
 
-    cancelRef.current = api.streamChat(
-      { message: prompt, conversationId: chat?.serverId, specialist: chat?.specialist, mode: model, spoken },
+    const cancel = api.streamChat(
+      { message: prompt, conversationId: chat?.serverId, specialist: chat?.specialist, mode: model, spoken, replaceFrom },
       {
-        onMeta: (meta) => patchChat(chatId, (c) => ({
-          ...c, serverId: meta.conversation_id, title: c.serverId ? c.title : meta.title, updatedAt: new Date().toISOString(), day: 'Today',
-        })),
+        onMeta: (meta) => {
+          patchChat(chatId, (c) => ({
+            ...c, serverId: meta.conversation_id, title: c.serverId ? c.title : meta.title, updatedAt: new Date().toISOString(), day: 'Today',
+            messages: userId && meta.user_message_id
+              ? (c.messages || []).map((m) => (m.id === userId ? { ...m, serverId: meta.user_message_id } : m))
+              : c.messages,
+          }))
+        },
         onStep: (label) => patchMsg(chatId, aId, (m) => ({ ...m, steps: m.steps.at(-1) === label ? m.steps : [...m.steps, label] })),
         onSources: (sources) => patchMsg(chatId, aId, (m) => ({ ...m, sources })),
         onToken: (tok) => {
           answer += tok
-          patchMsg(chatId, aId, (m) => ({ ...m, status: 'streaming', content: m.content + tok, finishedAt: m.finishedAt || Date.now() }))
+          pending += tok
+          if (!frame) frame = requestAnimationFrame(flush)
         },
         onDone: (d) => {
+          flush()
           patchMsg(chatId, aId, (m) => ({
             ...m, status: 'done', serverId: d.message_id, steps: d.steps?.length ? d.steps : m.steps,
             sources: d.sources || m.sources, outOfScope: d.out_of_scope, finishedAt: m.finishedAt || Date.now(),
@@ -159,12 +181,14 @@ export default function App() {
           onAnswer?.(answer)
         },
         onError: (e) => {
+          flush()
           patchMsg(chatId, aId, (m) => ({ ...m, status: 'error', error: e.detail, finishedAt: Date.now() }))
           finish()
           onAnswer?.('')
         },
       },
     )
+    cancelRef.current = () => { cancel(); flush() }
   }
 
   const send = (text, opts = {}) => {
@@ -182,7 +206,7 @@ export default function App() {
       chatsRef.current = chatsRef.current.map((c) => (c.id === chatId ? { ...c, messages: [...(c.messages || []), userMsg] } : c))
       patchChat(chatId, (c) => ({ ...c, messages: [...(c.messages || []), userMsg] }))
     }
-    startTurn(chatId, text, opts)
+    startTurn(chatId, text, { ...opts, userId: userMsg.id })
   }
 
   const stop = () => {
@@ -203,11 +227,23 @@ export default function App() {
     if (busy) return
     const chat = chats.find((c) => c.id === activeChatId)
     const idx = chat.messages.findIndex((m) => m.id === assistantId)
-    const prompt = [...chat.messages.slice(0, idx)].reverse().find((m) => m.role === 'user')?.content
-    if (!prompt) return
-    patchChat(chat.id, (c) => ({ ...c, messages: c.messages.filter((m) => m.id !== assistantId) }))
-    chatsRef.current = chatsRef.current.map((c) => (c.id === chat.id ? { ...c, messages: c.messages.filter((m) => m.id !== assistantId) } : c))
-    startTurn(chat.id, prompt)
+    const question = [...chat.messages.slice(0, idx)].reverse().find((m) => m.role === 'user')
+    if (question) resend(question.id, question.content)
+  }
+
+  // Edit a question or ask it again: everything from that question on is
+  // replaced by the new question and a fresh answer, here and on the server.
+  const resend = (userMsgId, text) => {
+    if (busy) return
+    const chat = chatsRef.current.find((c) => c.id === activeChatId)
+    const idx = chat?.messages?.findIndex((m) => m.id === userMsgId) ?? -1
+    if (idx < 0) return
+    const old = chat.messages[idx]
+    const userMsg = { id: uid('u'), role: 'user', content: text }
+    const messages = [...chat.messages.slice(0, idx), userMsg]
+    chatsRef.current = chatsRef.current.map((c) => (c.id === chat.id ? { ...c, messages } : c))
+    patchChat(chat.id, (c) => ({ ...c, messages }))
+    startTurn(chat.id, text, { replaceFrom: old.serverId || null, userId: userMsg.id })
   }
 
   const rate = (msg, value) => {
@@ -370,6 +406,7 @@ export default function App() {
                   busy={busy}
                   onVoice={openVoice}
                   onRetry={retry}
+                  onResend={resend}
                   onRate={rate}
                   model={model}
                   setModel={setModel}

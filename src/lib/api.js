@@ -158,7 +158,7 @@ export const feedback = (messageId, value) => request(`/brain/messages/${message
 
 /**
  * Ask Brain. Streams the answer as server-sent events:
- *   onMeta({conversation_id, title, specialist})  first
+ *   onMeta({conversation_id, title, specialist, user_message_id})  first
  *   onStep(label)                                 "Thinking", "Searching Finance & tax", "Reading …", "Writing"
  *   onSources(sources)                            cumulative [{document_id, title, group_name, where}]
  *   onToken(text)
@@ -166,7 +166,7 @@ export const feedback = (messageId, value) => request(`/brain/messages/${message
  *   onError({detail, status})
  * Returns a cancel function (the Stop button).
  */
-export function streamChat({ message, conversationId, specialist, mode, spoken = false }, handlers) {
+export function streamChat({ message, conversationId, specialist, mode, spoken = false, replaceFrom = null }, handlers) {
   const ctrl = new AbortController()
   const h = { onMeta() {}, onStep() {}, onSources() {}, onToken() {}, onDone() {}, onError() {}, ...handlers }
 
@@ -176,7 +176,12 @@ export function streamChat({ message, conversationId, specialist, mode, spoken =
       res = await fetch(`${BASE}/brain/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ message, conversation_id: conversationId ?? null, specialist: specialist ?? null, mode: mode || 'fast', spoken: !!spoken }),
+        body: JSON.stringify({
+          message, conversation_id: conversationId ?? null, specialist: specialist ?? null, mode: mode || 'fast', spoken: !!spoken,
+          // Edit / ask again / retry: the server deletes this user message and
+          // everything after it, then answers `message` in its place.
+          ...(replaceFrom ? { replace_from_message_id: replaceFrom } : {}),
+        }),
         signal: ctrl.signal,
       })
     } catch (e) {

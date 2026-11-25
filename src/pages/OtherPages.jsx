@@ -397,16 +397,23 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
 
           <section className="settings-card">
             <header className="sc-head"><span className="sc-icon"><SlidersHorizontal size={15} /></span> Answers</header>
-            <div className="sc-body">
-              <div className="field">Default mode
-                <div className="seg">
+            <div className="sc-body set-list">
+              <div className="set-row">
+                <div className="set-text">
+                  <div className="set-label">Default mode</div>
+                  <div className="set-hint">{models.find((m) => m.id === model)?.hint}.</div>
+                </div>
+                <div className="seg" role="radiogroup" aria-label="Default mode">
                   {models.map((m) => (
-                    <button key={m.id} className={model === m.id ? 'on' : ''} onClick={() => setModel(m.id)}>{m.name}</button>
+                    <button key={m.id} role="radio" aria-checked={model === m.id} className={model === m.id ? 'on' : ''} onClick={() => setModel(m.id)}>{m.name}</button>
                   ))}
                 </div>
-                <span className="muted small">{models.find((m) => m.id === model)?.hint}. The knowledge base is always used.</span>
               </div>
-              <div className="field">Knowledge you can read
+              <div className="set-row stack">
+                <div className="set-text">
+                  <div className="set-label">Knowledge you can read <span className="set-count">{me.groups.length}</span></div>
+                  <div className="set-hint">Brain always searches these when it answers you.</div>
+                </div>
                 <div className="group-tags">
                   {me.groups.map((g) => <span key={g.key} className="group-tag">{g.name}</span>)}
                 </div>

@@ -997,3 +997,106 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 /* login: plain light page, no dark glass blobs behind the card */
 .login-wrap { position: relative; z-index: 2; background: #f4f5f7; }
 .login-card { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; border-color: rgba(23, 24, 27, .06); }
+
+/* =====================================================================
+   Light surfaces + soft (neumorphic) cards
+   Solid colours instead of frosted glass: lighter to look at, and much
+   cheaper to paint (no full-screen blur over animated blobs).
+   ===================================================================== */
+:root {
+  --surface: #f7f8fa;           /* the main panel: chat, pages, settings */
+  --surface-2: #f1f3f6;         /* the frame around it, sidebar */
+  --neu-light: rgba(255, 255, 255, .95);
+  --neu-dark: rgba(150, 160, 178, .26);
+  --neu: 6px 6px 16px var(--neu-dark), -6px -6px 16px var(--neu-light);
+  --neu-sm: 3px 3px 8px var(--neu-dark), -3px -3px 8px var(--neu-light);
+  --neu-hover: 8px 8px 22px rgba(150, 160, 178, .32), -8px -8px 20px var(--neu-light);
+  --neu-in: inset 2px 2px 6px rgba(150, 160, 178, .28), inset -2px -2px 6px var(--neu-light);
+  --neu-card: linear-gradient(145deg, #ffffff, #f4f5f8);
+  --card-bg: #fff;
+}
+body { background: #eceef2; background-image: none; }
+body::before, body::after { display: none; }
+.shell {
+  background: var(--surface-2); backdrop-filter: none; -webkit-backdrop-filter: none;
+  border-color: rgba(255, 255, 255, .9);
+  box-shadow: 0 18px 44px -18px rgba(20, 24, 34, .16), var(--inner);
+}
+.main { background: var(--surface); border-color: rgba(255, 255, 255, .95); box-shadow: var(--neu-sm), var(--inner); }
+.viewer { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.menu { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.nav-item:hover, .sub-item:hover, .chat-row:hover, .chat-row.menu-open { background: rgba(255, 255, 255, .85); }
+
+/* cards */
+.settings-card, .group-card, .fact-card, .table, .voice-row, .boot-card, .md-table {
+  background: var(--neu-card); border: 1px solid rgba(255, 255, 255, .9);
+  box-shadow: var(--neu);
+}
+.settings-card, .table { border-radius: 16px; }
+.group-card, .fact-card { border-radius: 14px; transition: box-shadow .14s, transform .14s; }
+.group-card:hover, .fact-card:not(.fact-form):hover { background: var(--neu-card); border-color: rgba(255, 255, 255, .9); box-shadow: var(--neu-hover); transform: translateY(-1px); }
+.group-card:active { box-shadow: var(--neu-in); transform: none; }
+.fact-form { box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft), var(--neu); }
+.sc-head { background: transparent; border-bottom: 1px solid rgba(23, 24, 27, .06); }
+.sc-foot { background: transparent; border-top: 1px solid rgba(23, 24, 27, .06); }
+.sc-icon, .group-icon { border: 0; background: var(--surface); box-shadow: var(--neu-sm); }
+.tr { border-top-color: rgba(23, 24, 27, .055); }
+.tr.th { background: transparent; }
+.tr:not(.th):hover { background: rgba(255, 255, 255, .9); }
+.voice-row { border-radius: 14px; box-shadow: var(--neu-sm); }
+.voice-row:hover { background: var(--neu-card); border-color: rgba(255, 255, 255, .9); box-shadow: var(--neu); }
+.voice-row.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--neu-sm); }
+.voice-play { border: 0; box-shadow: var(--neu-sm); }
+.group-tag { border: 0; background: var(--surface); box-shadow: var(--neu-in); }
+.chip { border: 1px solid rgba(255, 255, 255, .9); background: var(--neu-card); box-shadow: var(--neu-sm); }
+.chip:hover { border-color: rgba(255, 255, 255, .9); background: #fff; box-shadow: var(--neu); }
+.source-chip { border: 1px solid rgba(255, 255, 255, .9); background: var(--neu-card); box-shadow: var(--neu-sm); }
+.dropzone { background: var(--surface); box-shadow: var(--neu-in); border-color: rgba(23, 24, 27, .14); transition: border-color .12s, background .12s; }
+.dropzone:hover, .dropzone.drag { background: #fff; }
+.composer { box-shadow: var(--neu), 0 0 0 1px rgba(23, 24, 27, .035); }
+.composer:focus-within { box-shadow: var(--neu-hover), 0 0 0 1px rgba(23, 24, 27, .05); }
+.filter { background: var(--neu-card); border-color: rgba(255, 255, 255, .9); box-shadow: var(--neu-sm); }
+.filter.on { box-shadow: none; }
+
+/* segmented control: a pressed-in track with a raised choice */
+.seg { border: 0; background: var(--surface); box-shadow: var(--neu-in); padding: 4px; border-radius: 10px; }
+.seg button { border-radius: 7px; transition: background .1s, color .1s, box-shadow .1s; }
+.seg button:hover:not(.on) { color: var(--text); }
+.seg button.on { background: #fff; color: var(--text); box-shadow: var(--neu-sm); }
+
+/* ---------- settings rows ---------- */
+.set-list { padding-top: 4px; padding-bottom: 4px; }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 0; }
+.set-row + .set-row { border-top: 1px solid rgba(23, 24, 27, .06); }
+.set-row.stack { flex-direction: column; align-items: stretch; gap: 12px; }
+.set-text { min-width: 0; }
+.set-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text); }
+.set-hint { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+.set-count { font-size: 11.5px; font-weight: 600; color: var(--text-2); background: var(--surface); box-shadow: var(--neu-in); padding: 1px 8px; border-radius: 999px; }
+.set-row .seg { flex: none; align-self: center; margin: 0; }
+@media (max-width: 560px) { .set-row { flex-direction: column; align-items: stretch; } .set-row .seg { align-self: flex-start; } }
+
+/* ---------- skeletons: light and smooth ---------- */
+.sk {
+  background: linear-gradient(90deg, rgba(23, 24, 27, .035) 0%, rgba(23, 24, 27, .065) 45%, rgba(23, 24, 27, .035) 90%);
+  background-size: 300% 100%;
+  animation: sk-shine 1.8s ease-in-out infinite;
+}
+.msg.user .sk { opacity: .8; }
+
+/* ---------- your question: copy, edit, ask again ---------- */
+.msg.user { flex-direction: column; align-items: flex-end; gap: 4px; }
+.user-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .12s; margin-right: -4px; }
+.msg.user:hover .user-actions, .user-actions:focus-within { opacity: 1; }
+@media (hover: none) { .user-actions { opacity: 1; } }
+.msg.user.editing { align-items: stretch; }
+.bubble-edit { width: min(640px, 100%); margin-left: auto; background: #fff; border-radius: 16px; padding: 12px 12px 10px 14px; box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft), var(--neu-sm); }
+.bubble-edit textarea { width: 100%; border: 0; outline: 0; resize: none; background: transparent; font-size: 15px; line-height: 1.55; color: var(--text); min-height: 24px; }
+.bubble-edit-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.bubble-edit-row .muted { margin-right: auto; }
+.ghost-btn.sm, .primary-btn.sm { height: 32px; padding: 0 12px; font-size: 13px; }
+@media (max-width: 560px) { .bubble-edit-row .muted { display: none; } }
+
+/* ---------- snappier ---------- */
+.input-icon, .otp input { transition: box-shadow .1s, background .1s; }
+.msg { contain: layout style; }

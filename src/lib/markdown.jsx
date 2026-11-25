@@ -5,7 +5,7 @@
 // `tidy` cleans the text first so answers read calmly: long dashes become
 // commas or colons, stray "•" bullets become real lists, and runs of blank
 // lines collapse.
-import React from 'react'
+import React, { memo, useMemo } from 'react'
 
 export function tidy(text) {
   return text
@@ -75,7 +75,7 @@ function renderList(items, key) {
   )
 }
 
-export function Markdown({ text }) {
+function render(text) {
   const lines = tidy(text).split('\n')
   const blocks = []
   let i = 0
@@ -197,5 +197,58 @@ export function Markdown({ text }) {
     )
   }
 
+  return blocks
+}
+
+// Re-parse only when the text changes, so streaming one answer doesn't
+// re-render every other answer in the thread.
+export const Markdown = memo(function Markdown({ text }) {
+  const blocks = useMemo(() => render(text), [text])
   return <div className="md">{blocks}</div>
+})
+
+// The answer as plain text for the clipboard: no **, #, backticks or table
+// pipes. Lists stay readable as "•" bullets and "1." numbers.
+export function toPlainText(text) {
+  const lines = tidy(text).split('\n')
+  const out = []
+  let inCode = false
+  for (let i = 0; i < lines.length; i++) {
+    let l = lines[i]
+    if (/^\s*```/.test(l)) { inCode = !inCode; continue }
+    if (inCode) { out.push(l); continue }
+    if (isTableSep(l)) continue
+    if (l.includes('|') && (isTableSep(lines[i + 1] || '') || isTableSep(lines[i - 1] || '') || /^\s*\|/.test(l))) {
+      l = cells(l).join('   ')
+    }
+    if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(l)) { out.push(''); continue }
+    l = l
+      .replace(/^(#{1,6})\s+(.*?)\s*#*$/, '$2')
+      .replace(/^(\s*)[-*+]\s+/, '$1• ')
+      .replace(/^\s*>\s?/, '')
+      .replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, '$1 ($2)')
+      .replace(/(\*\*|__)(.+?)\1/g, '$2')
+      .replace(/(?<![\w*])\*([^*\n]+)\*(?![\w*])/g, '$1')
+      .replace(/(?<![\w])_([^_\n]+)_(?![\w])/g, '$1')
+      .replace(/`([^`\n]+)`/g, '$1')
+      .replace(/\*\*/g, '')
+    out.push(l)
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+// Copy an answer: plain text, plus formatted HTML for apps that accept it
+// (Docs, Word, email), so lists and bold survive without any asterisks.
+export async function copyAnswer(text, htmlEl) {
+  const plain = toPlainText(text)
+  try {
+    if (htmlEl && window.ClipboardItem && navigator.clipboard?.write) {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob([plain], { type: 'text/plain' }),
+        'text/html': new Blob([htmlEl.innerHTML], { type: 'text/html' }),
+      })])
+      return
+    }
+  } catch { /* fall back to plain text */ }
+  await navigator.clipboard?.writeText(plain)
 }
