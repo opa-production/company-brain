@@ -47,6 +47,19 @@ function ThoughtFor({ msg }) {
   )
 }
 
+// While an answer streams: a soft dot as text flows, and the "working" shimmer
+// again (with the current step) when Atlas pauses to look something up.
+function StreamTail({ msg }) {
+  const [paused, setPaused] = useState(false)
+  useEffect(() => {
+    setPaused(false)
+    const t = setTimeout(() => setPaused(true), 600)
+    return () => clearTimeout(t)
+  }, [msg.content, msg.steps?.length])
+  if (paused) return <div className="stream-wait"><Working label={msg.steps?.[msg.steps.length - 1] || 'Thinking'} /></div>
+  return <span className="stream-dot" aria-hidden="true" />
+}
+
 // Speaker button: read this answer aloud, or stop it.
 function ReadAloudButton({ msg }) {
   const r = useReadAloud()
@@ -91,7 +104,7 @@ const AssistantMessage = memo(function AssistantMessage({ msg, actions, canSpeak
         {done && msg.outOfScope?.length > 0 && (
           <div className="msg-note">Part of this is outside what your role can see.</div>
         )}
-        {msg.status === 'streaming' && <span className="caret-blink" />}
+        {msg.status === 'streaming' && <StreamTail msg={msg} />}
         {done && msg.sources?.length > 0 && (
           <div className="sources">
             {msg.sources.map((s, i) => (

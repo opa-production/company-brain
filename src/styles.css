@@ -1123,3 +1123,17 @@ body::before, body::after { display: none; }
 /* read aloud */
 .read-toggle.on { color: var(--accent); background: var(--accent-soft); }
 .msg-actions .icon-btn.on { color: var(--accent); background: var(--accent-soft); }
+
+/* streaming: a soft breathing dot instead of a dark block cursor */
+.stream-dot {
+  display: inline-block; width: 9px; height: 9px; margin-left: 2px; border-radius: 50%; vertical-align: 1px;
+  background: radial-gradient(circle at 35% 35%, var(--cook-2), var(--cook));
+  box-shadow: 0 0 0 0 rgba(217, 119, 87, .35);
+  animation: stream-breathe 1.1s ease-in-out infinite;
+}
+@keyframes stream-breathe {
+  0%, 100% { transform: scale(.75); opacity: .55; box-shadow: 0 0 0 0 rgba(217, 119, 87, .3); }
+  50% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 5px rgba(217, 119, 87, 0); }
+}
+.stream-wait { margin-top: 4px; animation: fade .2s ease-out; }
+.md + .stream-dot, .msg-body > div + .stream-dot { margin-top: 2px; }
