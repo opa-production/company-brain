@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Paperclip, AudioLines, ArrowUp, Square, X, ChevronDown, Check } from 'lucide-react'
+import { Paperclip, AudioLines, ArrowUp, Square, X, ChevronDown, Check, Volume2, VolumeX } from 'lucide-react'
 import { FileBadge, Icon } from './Icon.jsx'
 import { models } from '../config.js'
 
@@ -43,7 +43,7 @@ function ModePicker({ model, setModel }) {
   )
 }
 
-export default function Composer({ onSend, onStop, busy, onVoice, compact, model, setModel, placeholder }) {
+export default function Composer({ onSend, onStop, busy, onVoice, compact, model, setModel, placeholder, autoRead, setAutoRead }) {
   const [text, setText] = useState('')
   const [files, setFiles] = useState([])
   const ta = useRef(null)
@@ -97,6 +97,16 @@ export default function Composer({ onSend, onStop, busy, onVoice, compact, model
           <input ref={fileInput} type="file" multiple hidden onChange={(e) => { setFiles([...files, ...e.target.files]); e.target.value = '' }} />
           <button className="tool-btn" onClick={() => fileInput.current.click()} title="Attach files"><Paperclip size={17} /></button>
           <ModePicker model={model} setModel={setModel} />
+          {setAutoRead && (
+            <button
+              className={`tool-btn read-toggle ${autoRead ? 'on' : ''}`}
+              onClick={() => setAutoRead(!autoRead)}
+              title={autoRead ? 'Reading answers aloud. Click to turn off' : 'Read answers aloud'}
+              aria-pressed={!!autoRead}
+            >
+              {autoRead ? <Volume2 size={17} /> : <VolumeX size={17} />}
+            </button>
+          )}
         </div>
         {busy ? (
           <button className="send-btn stop" onClick={onStop} title="Stop"><Square size={13} fill="currentColor" /></button>

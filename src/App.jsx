@@ -11,6 +11,7 @@ import * as api from './lib/api.js'
 import { clearPageCache } from './lib/cache.js'
 import { BrainContext, dayLabel, groupName } from './lib/brain.jsx'
 import { AppSkeleton } from './components/Skeletons.jsx'
+import { autoReadOn, readAloud, setAutoRead as saveAutoRead, stopReading } from './lib/readAloud.js'
 
 const MODE_KEY = 'ardena-brain-mode'
 
@@ -68,9 +69,16 @@ export default function App() {
   // Specialist for the next new chat; an open chat keeps the one it started with.
   const [specialist, setSpecialist] = useState(null)
   const [busy, setBusy] = useState(false)
+  // Typed chat: read each new answer aloud when switched on in the composer.
+  const [autoRead, setAutoReadState] = useState(autoReadOn)
+  const autoReadRef = useRef(autoRead)
+  autoReadRef.current = autoRead
+  const setAutoRead = (on) => { setAutoReadState(on); saveAutoRead(on); if (!on) stopReading() }
   const cancelRef = useRef(null)
+  const meRef = useRef(null)
   const chatsRef = useRef(chats)
   chatsRef.current = chats
+  meRef.current = me
 
   // Any navigation from the drawer closes it.
   useEffect(() => { setNavOpen(false) }, [view, activeChatId, kbGroup, specialist])
@@ -79,6 +87,7 @@ export default function App() {
 
   const signedOut = useCallback((reason) => {
     clearPageCache()
+    stopReading()
     cancelRef.current?.()
     cancelRef.current = null
     setBusy(false)
@@ -133,6 +142,7 @@ export default function App() {
   const startTurn = (chatId, prompt, { onAnswer, spoken = false, replaceFrom = null, userId = null } = {}) => {
     const chat = chatsRef.current.find((c) => c.id === chatId)
     const aId = uid('a')
+    stopReading()
     patchChat(chatId, (c) => ({
       ...c,
       messages: [...(c.messages || []), { id: aId, role: 'assistant', status: 'working', steps: [], content: '', sources: [], startedAt: Date.now() }],
@@ -179,6 +189,7 @@ export default function App() {
           }))
           finish()
           onAnswer?.(answer)
+          if (!spoken && autoReadRef.current && meRef.current?.voice_enabled && answer) readAloud(aId, answer)
         },
         onError: (e) => {
           flush()
@@ -210,6 +221,7 @@ export default function App() {
   }
 
   const stop = () => {
+    stopReading()
     cancelRef.current?.()
     cancelRef.current = null
     setBusy(false)
@@ -257,6 +269,7 @@ export default function App() {
   const go = (v) => { if (voiceOpen) setVoiceMin(true); setView(v) }
 
   const newChat = (sp = null) => {
+    stopReading()
     if (busy) stop()
     if (voiceOpen) setVoiceMin(true)
     setSpecialist(sp)
@@ -265,6 +278,7 @@ export default function App() {
   }
 
   const openChat = async (id) => {
+    stopReading()
     if (busy) stop()
     if (voiceOpen) setVoiceMin(true)
     setActiveChatId(id)
@@ -353,7 +367,7 @@ export default function App() {
 
   const activeChat = chats.find((c) => c.id === activeChatId)
   const activeSpecialist = specialists.find((x) => x.id === (activeChat ? activeChat.specialist : specialist)) || null
-  const openVoice = () => { setVoiceOpen(true); setVoiceMin(false) }
+  const openVoice = () => { stopReading(); setVoiceOpen(true); setVoiceMin(false) }
   const titles = {
     kb: kbGroup === 'all' ? 'Knowledge base / All' : kbGroup ? `Knowledge base / ${groupName(ctx.groups, kbGroup)}` : 'Knowledge base',
     facts: 'Company facts',
@@ -407,6 +421,8 @@ export default function App() {
                   onVoice={openVoice}
                   onRetry={retry}
                   onResend={resend}
+                  autoRead={autoRead}
+                  setAutoRead={setAutoRead}
                   onRate={rate}
                   model={model}
                   setModel={setModel}

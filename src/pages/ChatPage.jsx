@@ -1,5 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Pencil, RefreshCw } from 'lucide-react'
+import { Copy, Check, ThumbsUp, ThumbsDown, RotateCcw, ChevronDown, ChevronRight, FileText, Pencil, RefreshCw, Volume2, Square } from 'lucide-react'
+import Loader from '../components/Loader.jsx'
+import { toggleReading, useReadAloud } from '../lib/readAloud.js'
 import Composer from '../components/Composer.jsx'
 import Orb from '../components/Orb.jsx'
 import { Icon } from '../components/Icon.jsx'
@@ -45,7 +47,27 @@ function ThoughtFor({ msg }) {
   )
 }
 
-const AssistantMessage = memo(function AssistantMessage({ msg, actions }) {
+// Speaker button: read this answer aloud, or stop it.
+function ReadAloudButton({ msg }) {
+  const r = useReadAloud()
+  const mine = r.id === msg.id
+  return (
+    <button
+      className={`icon-btn sm ${mine ? 'on' : ''}`}
+      title={mine ? 'Stop reading' : 'Read aloud'}
+      onClick={() => toggleReading(msg.id, msg.content)}
+    >
+      {mine && r.phase === 'loading' ? <Loader size={15} /> : mine ? <Square size={12} fill="currentColor" /> : <Volume2 size={15} />}
+    </button>
+  )
+}
+
+function ReadAloudError({ msg }) {
+  const r = useReadAloud()
+  return r.errorId === msg.id && r.error ? <div className="msg-note">{r.error}</div> : null
+}
+
+const AssistantMessage = memo(function AssistantMessage({ msg, actions, canSpeak }) {
   const [copied, flash] = useFlash()
   const body = useRef(null)
   const vote = msg.feedback === 1 ? 'up' : msg.feedback === -1 ? 'down' : null
@@ -88,6 +110,7 @@ const AssistantMessage = memo(function AssistantMessage({ msg, actions }) {
             >
               {copied ? <Check size={15} /> : <Copy size={15} />}
             </button>
+            {canSpeak && msg.content && <ReadAloudButton msg={msg} />}
             {msg.serverId && <>
               <button className={`icon-btn sm ${vote === 'up' ? 'on' : ''}`} onClick={() => actions.current.rate(msg, vote === 'up' ? 0 : 1)} title="Good answer"><ThumbsUp size={15} /></button>
               <button className={`icon-btn sm ${vote === 'down' ? 'on' : ''}`} onClick={() => actions.current.rate(msg, vote === 'down' ? 0 : -1)} title="Bad answer"><ThumbsDown size={15} /></button>
@@ -95,6 +118,7 @@ const AssistantMessage = memo(function AssistantMessage({ msg, actions }) {
             <button className="icon-btn sm" onClick={() => actions.current.retry(msg.id)} title="Retry"><RotateCcw size={15} /></button>
           </div>
         )}
+        {done && canSpeak && <ReadAloudError msg={msg} />}
       </div>
     </div>
   )
@@ -161,12 +185,14 @@ const UserMessage = memo(function UserMessage({ msg, busy, actions }) {
   )
 })
 
-export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoice, onRetry, onRate, onResend, model, setModel }) {
+export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoice, onRetry, onRate, onResend, model, setModel, autoRead, setAutoRead }) {
   const scroller = useRef(null)
   const stick = useRef(true)
   const messages = chat?.messages || []
   const last = messages[messages.length - 1]
   const { me } = useBrain()
+  const canSpeak = !!me?.voice_enabled
+  const speakProps = canSpeak ? { autoRead, setAutoRead } : {}
   // A new greeting each time the home screen opens, picked for the time of day.
   const hello = useMemo(() => greeting(me?.user?.name), [chat?.id, specialist?.id, me?.user?.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -209,7 +235,7 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
           )}
         </div>
         <div className="home-composer">
-          <Composer onSend={onSend} busy={busy} onVoice={onVoice} onStop={onStop} model={model} setModel={setModel} placeholder={specialist?.placeholder} />
+          <Composer onSend={onSend} busy={busy} onVoice={onVoice} onStop={onStop} model={model} setModel={setModel} placeholder={specialist?.placeholder} {...speakProps} />
           {specialist?.suggestions && (
             <div className="chips" key={specialist.id}>
               {specialist.suggestions.map((s) => (
@@ -231,12 +257,12 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
           {messages.map((m) =>
             m.role === 'user'
               ? <UserMessage key={m.id} msg={m} busy={busy} actions={actions} />
-              : <AssistantMessage key={m.id} msg={m} actions={actions} />,
+              : <AssistantMessage key={m.id} msg={m} actions={actions} canSpeak={canSpeak} />,
           )}
         </div>
       </div>
       <div className="chat-composer">
-        <Composer onSend={onSend} busy={busy} onStop={onStop} onVoice={onVoice} compact model={model} setModel={setModel} placeholder={specialist?.placeholder} />
+        <Composer onSend={onSend} busy={busy} onStop={onStop} onVoice={onVoice} compact model={model} setModel={setModel} placeholder={specialist?.placeholder} {...speakProps} />
         <div className="legal">Atlas can be wrong. Check important facts against the cited source.</div>
       </div>
     </div>

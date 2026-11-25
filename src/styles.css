@@ -1116,3 +1116,10 @@ body::before, body::after { display: none; }
 .sc-head { font-size: 14.5px; letter-spacing: -.1px; }
 .sc-foot .danger-btn, .sc-foot .primary-btn.sm { height: 34px; padding: 0 14px; margin: 0; }
 .danger-btn:active, .primary-btn.sm:active:not(:disabled) { transform: scale(.96); }
+
+/* Word documents: Word blue, like PDFs are red */
+.ff-doc { --fb-bg: #2b579a; --fb-fg: #fff; --fb-fold: #8fb0e0; box-shadow: none; }
+
+/* read aloud */
+.read-toggle.on { color: var(--accent); background: var(--accent-soft); }
+.msg-actions .icon-btn.on { color: var(--accent); background: var(--accent-soft); }

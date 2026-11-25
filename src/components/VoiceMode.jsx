@@ -24,7 +24,8 @@ const MAX_SPOKEN_CHARS = 1400 // ~1.5 minutes; the full answer is in the chat
 // Answers are written to be read on screen. Turn one into something that
 // sounds natural spoken: no tables, code, headings marks or citation tags,
 // list items as sentences, and cut at a sentence end rather than mid-word.
-export function toSpeech(md) {
+// `max`: cut length; pass Infinity to keep the whole answer (read-aloud in chat).
+export function toSpeech(md, max = MAX_SPOKEN_CHARS) {
   let t = (md || '')
     .replace(/```[\s\S]*?```/g, ' ')                       // code blocks
     .split('\n')
@@ -47,8 +48,8 @@ export function toSpeech(md) {
     .replace(/([.,!?;:])\1+/g, '$1')
     .replace(/\s{2,}/g, ' ')
     .trim()
-  if (t.length <= MAX_SPOKEN_CHARS) return t
-  const cut = t.slice(0, MAX_SPOKEN_CHARS)
+  if (t.length <= max) return t
+  const cut = t.slice(0, max)
   const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '))
   return (end > 200 ? cut.slice(0, end + 1) : cut) + ' The rest is in the chat.'
 }
