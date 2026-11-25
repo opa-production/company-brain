@@ -1208,3 +1208,8 @@ body::before, body::after { display: none; }
 .memory-item textarea.input { width: 100%; height: auto; padding: 6px 10px; resize: vertical; }
 .memory-add { display: flex; gap: 8px; margin-top: 12px; }
 .memory-add .input { flex: 1; }
+
+/* Logs button in Settings: black */
+.ghost-btn.dark-btn { background: #111; color: #fff; border-color: #111; box-shadow: none; }
+.ghost-btn.dark-btn:hover { background: #2a2a2a; border-color: #2a2a2a; color: #fff; }
+.ghost-btn.dark-btn svg { color: #fff; }

@@ -378,7 +378,7 @@ export default function App() {
     reports: 'Department reports',
     history: 'History',
     settings: 'Settings',
-    audit: 'Audit log',
+    audit: 'Logs',
   }
 
   return (
