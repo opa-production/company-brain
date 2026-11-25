@@ -7,6 +7,7 @@ import KnowledgeBase from './pages/KnowledgeBase.jsx'
 import Login from './pages/Login.jsx'
 import { AuditPage, FactsPage, HistoryPage, SettingsPage } from './pages/OtherPages.jsx'
 import { ReportsPage, SocialsPage } from './pages/Workspace.jsx'
+import { MemoryPage } from './pages/MemoryPage.jsx'
 import { specialists } from './config.js'
 import * as api from './lib/api.js'
 import { clearPageCache } from './lib/cache.js'
@@ -376,6 +377,7 @@ export default function App() {
     facts: 'Company facts',
     socials: 'Company socials',
     reports: 'Department reports',
+    memory: 'Memory',
     history: 'History',
     settings: 'Settings',
     audit: 'Logs',
@@ -437,6 +439,7 @@ export default function App() {
               {view === 'facts' && <FactsPage />}
               {view === 'socials' && <SocialsPage />}
               {view === 'reports' && <ReportsPage onAsk={(t) => send(t, { fresh: true })} />}
+              {view === 'memory' && <MemoryPage />}
               {view === 'history' && (
                 <HistoryPage chats={chats} openChat={openChat} removeChat={removeChat} archiveChat={archiveChat} renameChat={renameChat} onRestored={restoreChat} />
               )}

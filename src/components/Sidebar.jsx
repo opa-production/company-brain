@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Search, PanelLeft, SquarePen, BookOpen, KeyRound, History, Settings, ChevronDown, ChevronRight, ArrowRight,
-  MoreHorizontal, Pencil, Archive, Trash2, X, Share2, FileBarChart,
+  MoreHorizontal, Pencil, Archive, Trash2, X, Share2, FileBarChart, Bookmark,
 } from 'lucide-react'
 import { Icon } from './Icon.jsx'
 import { specialists } from '../config.js'
@@ -164,6 +164,7 @@ export default function Sidebar({
         <button className="icon-btn" title="Company facts" onClick={() => setView('facts')}><KeyRound size={18} /></button>
         <button className="icon-btn" title="Company socials" onClick={() => setView('socials')}><Share2 size={18} /></button>
         <button className="icon-btn" title="Department reports" onClick={() => setView('reports')}><FileBarChart size={18} /></button>
+        <button className="icon-btn" title="Memory" onClick={() => setView('memory')}><Bookmark size={18} /></button>
       </aside>
     )
   }
@@ -254,6 +255,7 @@ export default function Sidebar({
         <NavItem id="facts" icon={KeyRound} label="Company facts" />
         <NavItem id="socials" icon={Share2} label="Company socials" />
         <NavItem id="reports" icon={FileBarChart} label="Department reports" />
+        <NavItem id="memory" icon={Bookmark} label="Memory" />
         <NavItem id="history" icon={History} label="History" />
       </nav>
 

@@ -1198,15 +1198,16 @@ body::before, body::after { display: none; }
 .email-panel textarea.input { height: auto; padding: 8px 12px; resize: vertical; line-height: 1.5; }
 .email-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 
-/* ---------- Settings → Memory ---------- */
-.memory-group + .memory-group { margin-top: 14px; }
-.memory-group-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; display: flex; justify-content: space-between; }
+/* ---------- Memory page ---------- */
+.memory-card-title { display: inline-flex; align-items: center; gap: 7px; }
+.memory-page .sc-head { display: flex; align-items: center; justify-content: space-between; }
+.memory-page .memory-add { margin: 0 0 18px; max-width: 900px; }
 .memory-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .memory-item { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 13.5px; }
 .memory-item .memory-body { flex: 1; min-width: 0; }
 .memory-item .memory-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 .memory-item textarea.input { width: 100%; height: auto; padding: 6px 10px; resize: vertical; }
-.memory-add { display: flex; gap: 8px; margin-top: 12px; }
+.memory-add { display: flex; gap: 8px; align-items: center; }
 .memory-add .input { flex: 1; }
 
 /* Logs button in Settings: black */
