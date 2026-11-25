@@ -60,6 +60,32 @@ export const suggestions = [
   { icon: 'CalendarCheck', label: 'Bookings this month', prompt: 'How many bookings do we have this month?' },
 ]
 
+// Departments that file monthly reports (Department reports page). Keys are
+// sent to the API; keep them in step with opabackend app/brain/reports.py.
+export const departments = [
+  { key: 'finance', name: 'Finance' },
+  { key: 'sales', name: 'Sales' },
+  { key: 'marketing', name: 'Marketing' },
+  { key: 'operations', name: 'Operations' },
+  { key: 'product', name: 'Product & tech' },
+  { key: 'customer_service', name: 'Customer service' },
+  { key: 'hr', name: 'People & HR' },
+]
+
+// Platforms on the Company socials page, in display order.
+export const SOCIAL_PLATFORMS = [
+  { key: 'website', name: 'Website' },
+  { key: 'instagram', name: 'Instagram' },
+  { key: 'linkedin', name: 'LinkedIn' },
+  { key: 'x', name: 'X (Twitter)' },
+  { key: 'facebook', name: 'Facebook' },
+  { key: 'tiktok', name: 'TikTok' },
+  { key: 'youtube', name: 'YouTube' },
+  { key: 'whatsapp', name: 'WhatsApp' },
+  { key: 'email', name: 'Email' },
+  { key: 'other', name: 'Other' },
+]
+
 export const ROLE_LABELS = {
   super_admin: 'Super admin',
   general_admin: 'General admin',

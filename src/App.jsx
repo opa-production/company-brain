@@ -6,6 +6,7 @@ import ChatPage from './pages/ChatPage.jsx'
 import KnowledgeBase from './pages/KnowledgeBase.jsx'
 import Login from './pages/Login.jsx'
 import { AuditPage, FactsPage, HistoryPage, SettingsPage } from './pages/OtherPages.jsx'
+import { ReportsPage, SocialsPage } from './pages/Workspace.jsx'
 import { specialists } from './config.js'
 import * as api from './lib/api.js'
 import { clearPageCache } from './lib/cache.js'
@@ -371,6 +372,8 @@ export default function App() {
   const titles = {
     kb: kbGroup === 'all' ? 'Knowledge base / All' : kbGroup ? `Knowledge base / ${groupName(ctx.groups, kbGroup)}` : 'Knowledge base',
     facts: 'Company facts',
+    socials: 'Company socials',
+    reports: 'Department reports',
     history: 'History',
     settings: 'Settings',
     audit: 'Audit log',
@@ -430,6 +433,8 @@ export default function App() {
               )}
               {view === 'kb' && <KnowledgeBase group={kbGroup} setGroup={setKbGroup} onAsk={(t) => send(t, { fresh: true })} />}
               {view === 'facts' && <FactsPage />}
+              {view === 'socials' && <SocialsPage />}
+              {view === 'reports' && <ReportsPage onAsk={(t) => send(t, { fresh: true })} />}
               {view === 'history' && (
                 <HistoryPage chats={chats} openChat={openChat} removeChat={removeChat} archiveChat={archiveChat} renameChat={renameChat} onRestored={restoreChat} />
               )}

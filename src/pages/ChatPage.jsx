@@ -4,7 +4,6 @@ import Loader from '../components/Loader.jsx'
 import { toggleReading, useReadAloud } from '../lib/readAloud.js'
 import Composer from '../components/Composer.jsx'
 import Orb from '../components/Orb.jsx'
-import { Icon } from '../components/Icon.jsx'
 import { Markdown, copyAnswer } from '../lib/markdown.jsx'
 import { greeting } from '../lib/greeting.js'
 import { useBrain } from '../lib/brain.jsx'
@@ -234,30 +233,11 @@ export default function ChatPage({ chat, specialist, onSend, onStop, busy, onVoi
       <div className="home">
         <div className="hero">
           <Orb variant="full" size={170} />
-          {specialist ? (
-            <>
-              <span className="hero-tag"><Icon name={specialist.icon} size={13} /> {specialist.name} specialist</span>
-              <h1>How can {specialist.name} help?</h1>
-              <p className="hero-sub">{specialist.tagline}. I search {specialist.name.toLowerCase()} documents first.</p>
-            </>
-          ) : (
-            <>
-              <h1>{hello.title}</h1>
-              <p className="hero-sub">{hello.sub}</p>
-            </>
-          )}
+          <h1>{hello.title}</h1>
+          <p className="hero-sub">{hello.sub}</p>
         </div>
         <div className="home-composer">
           <Composer onSend={onSend} busy={busy} onVoice={onVoice} onStop={onStop} model={model} setModel={setModel} placeholder={specialist?.placeholder} {...speakProps} />
-          {specialist?.suggestions && (
-            <div className="chips" key={specialist.id}>
-              {specialist.suggestions.map((s) => (
-                <button key={s.label} className="chip" onClick={() => onSend(s.prompt, {})}>
-                  <Icon name={s.icon} size={16} /> {s.label}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     )

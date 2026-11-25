@@ -146,6 +146,44 @@ export const revealFact = (key) => request(`/brain/facts/${key}/reveal`, { metho
 export const saveFact = (key, fact) => request(`/brain/facts/${key}`, { method: 'PUT', body: fact })
 export const deleteFact = (key) => request(`/brain/facts/${key}`, { method: 'DELETE' })
 
+// ---------------------------------------------------------------- company socials
+
+export const socials = () => request('/brain/socials')
+export const addSocial = (s) => request('/brain/socials', { method: 'POST', body: s })
+export const updateSocial = (id, s) => request(`/brain/socials/${id}`, { method: 'PATCH', body: s })
+export const deleteSocial = (id) => request(`/brain/socials/${id}`, { method: 'DELETE' })
+
+// ---------------------------------------------------------------- department reports
+
+export const reports = ({ department } = {}) => request(`/brain/reports${department ? `?department=${department}` : ''}`)
+export const deleteReport = (id) => request(`/brain/reports/${id}`, { method: 'DELETE' })
+
+/** Upload a department report (multipart). Reports progress like document uploads. */
+export function uploadReport({ file, department, period, title }, onProgress) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('department', department)
+  form.append('period', period)
+  if (title) form.append('title', title)
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `${BASE}/brain/reports`)
+    const auth = getToken()
+    if (auth) xhr.setRequestHeader('Authorization', `Bearer ${auth}`)
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total)
+    xhr.onerror = () => reject(new ApiError(0, 'Network problem. Check your connection.'))
+    xhr.onload = () => {
+      let data = null
+      try { data = JSON.parse(xhr.responseText) } catch { /* empty body */ }
+      if (xhr.status >= 200 && xhr.status < 300) return resolve(data)
+      const detail = typeof data?.detail === 'string' ? data.detail : data?.detail?.[0]?.msg
+      if (xhr.status === 401) { setToken(null); onSignedOut(detail) }
+      reject(new ApiError(xhr.status, xhr.status === 404 ? "Department reports aren't switched on yet." : detail))
+    }
+    xhr.send(form)
+  })
+}
+
 // ---------------------------------------------------------------- chat
 
 /** Chats, newest first. Archived chats only come back with { archived: true }. */
