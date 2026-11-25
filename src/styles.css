@@ -1137,3 +1137,10 @@ body::before, body::after { display: none; }
 }
 .stream-wait { margin-top: 4px; animation: fade .2s ease-out; }
 .md + .stream-dot, .msg-body > div + .stream-dot { margin-top: 2px; }
+
+/* chat: a wider thread, so answers sit further left and questions further right */
+.thread { width: min(960px, 100%); padding-left: 28px; padding-right: 28px; }
+.chat-composer { width: min(840px, 100%); }
+.bubble { max-width: min(72%, 620px); }
+.bubble-edit { width: min(680px, 100%); }
+@media (max-width: 900px) { .thread { padding-left: 16px; padding-right: 16px; } .bubble { max-width: 86%; } }
