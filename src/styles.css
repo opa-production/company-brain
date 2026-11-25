@@ -981,3 +981,11 @@ button, a, [role=radio] { -webkit-tap-highlight-color: transparent; }
 
 .ocr-hint { margin: 6px 2px 0; line-height: 1.4; }
 .doc-status .ghost-btn.full + .ghost-btn.full { margin-top: 8px; }
+
+/* login: the wrapper is the field; the inner input is bare so it reads as one box */
+.field .input-icon input:not([type=checkbox]):not([type=radio]),
+.field .input-icon input:not([type=checkbox]):not([type=radio]):hover,
+.field .input-icon input:not([type=checkbox]):not([type=radio]):focus {
+  height: 100%; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none;
+}

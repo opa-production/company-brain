@@ -29,7 +29,7 @@ export default function Login({ onSignedIn, reason }) {
   const submitPassword = async (e) => {
     e.preventDefault()
     setError('')
-    if (!email || !password) return setError('Enter your admin email and password.')
+    if (!email || !password) return setError('Enter your email and password.')
     setBusy(true)
     try {
       const challenge = await api.login(email.trim(), password)
@@ -100,7 +100,6 @@ export default function Login({ onSignedIn, reason }) {
         {step === 'password' ? (
           <form onSubmit={submitPassword}>
             <h2>Sign in</h2>
-            <p className="muted">Use your Ardena admin account.</p>
             <label className="field">Email
               <div className="input-icon"><Mail size={16} /><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@ardena.co.ke" /></div>
             </label>
