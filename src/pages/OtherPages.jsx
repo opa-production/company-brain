@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  Copy, Check, Eye, EyeOff, Lock, FileText, MessageSquare, Shield, AudioLines, UserRound, ShieldCheck, LogOut,
-  SlidersHorizontal, Plus, Pencil, Trash2, ScrollText, Play, Square, Archive, ArchiveRestore, X,
+  Copy, Check, Eye, EyeOff, Lock, FileText, MessageSquare, ShieldCheck, LogOut,
+  Plus, Pencil, Trash2, ScrollText, Play, Square, Archive, ArchiveRestore, X,
 } from 'lucide-react'
 import { models, ROLE_LABELS, SPEAK_KEY, VOICE_KEY, VOICES, DEFAULT_VOICE } from '../config.js'
 import * as api from '../lib/api.js'
@@ -378,7 +378,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
       <div className="settings-grid">
         <div className="settings-col">
           <section className="settings-card">
-            <header className="sc-head"><span className="sc-icon"><UserRound size={15} /></span> Profile</header>
+            <header className="sc-head">Profile</header>
             <div className="sc-body profile-row">
               <UserAvatar user={user} size="lg" />
               <div className="profile-text">
@@ -391,12 +391,12 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
               <span className="muted small credit">
                 Profile picture: <a href="https://www.flaticon.com/free-icons/animals" title="animals icons" target="_blank" rel="noreferrer">Animals icons created by Magnific - Flaticon</a>
               </span>
-              <button className="ghost-btn danger" onClick={onLogout}><LogOut size={15} /> Sign out</button>
+              <button className="danger-btn" onClick={onLogout}><LogOut size={15} /> Sign out</button>
             </footer>
           </section>
 
           <section className="settings-card">
-            <header className="sc-head"><span className="sc-icon"><SlidersHorizontal size={15} /></span> Answers</header>
+            <header className="sc-head">Answers</header>
             <div className="sc-body set-list">
               <div className="set-row">
                 <div className="set-text">
@@ -414,15 +414,15 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
                   <div className="set-label">Knowledge you can read <span className="set-count">{me.groups.length}</span></div>
                   <div className="set-hint">Atlas always searches these when it answers you.</div>
                 </div>
-                <div className="group-tags">
-                  {me.groups.map((g) => <span key={g.key} className="group-tag">{g.name}</span>)}
-                </div>
+                <ul className="group-list">
+                  {me.groups.map((g) => <li key={g.key}>{g.name}</li>)}
+                </ul>
               </div>
             </div>
           </section>
 
           <section className="settings-card">
-            <header className="sc-head"><span className="sc-icon"><Shield size={15} /></span> Security</header>
+            <header className="sc-head">Security</header>
             <div className="sc-body">
               <div className="kv"><span>Sign-in</span><span>Admin account + one-time code</span></div>
               <div className="kv"><span>Session</span><span>8 hours, signs out after 30 min idle</span></div>
@@ -432,7 +432,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
               <span className="muted small">Every sign-in, upload, download and reveal is logged.</span>
               <span className="row-actions">
                 {me.can_view_audit && <button className="ghost-btn" onClick={onAudit}><ScrollText size={15} /> Audit log</button>}
-                <button className="ghost-btn" onClick={everywhere} disabled={busy}>Sign out everywhere</button>
+                <button className="primary-btn sm" onClick={everywhere} disabled={busy}>Sign out everywhere</button>
               </span>
             </footer>
           </section>
@@ -441,7 +441,7 @@ export function SettingsPage({ onLogout, onLoggedOutEverywhere, model, setModel,
         <div className="settings-col">
           <section className="settings-card">
             <header className="sc-head">
-              <span className="sc-icon"><AudioLines size={15} /></span> Voice
+              Voice
               {me.voice_enabled && (
                 <label className="switch" title="Read answers aloud in voice mode">
                   <input type="checkbox" checked={speakAnswers} onChange={toggleSpeak} />

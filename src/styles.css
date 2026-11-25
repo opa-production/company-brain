@@ -1100,3 +1100,19 @@ body::before, body::after { display: none; }
 /* ---------- snappier ---------- */
 .input-icon, .otp input { transition: box-shadow .1s, background .1s; }
 .msg { contain: layout style; }
+
+/* settings: knowledge groups as an aligned two-column list */
+.group-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; }
+.group-list li {
+  display: flex; align-items: center; gap: 10px; min-width: 0; padding: 9px 2px;
+  font-size: 13.5px; color: var(--text); border-bottom: 1px solid rgba(23, 24, 27, .06);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.group-list li::before { content: ''; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: .7; }
+.group-list li:nth-last-child(-n+2):nth-child(odd), .group-list li:last-child { border-bottom: 0; }
+@media (max-width: 420px) { .group-list { grid-template-columns: 1fr; } .group-list li:nth-last-child(2):nth-child(odd) { border-bottom: 1px solid rgba(23, 24, 27, .06); } }
+
+/* settings: card titles without icons; sign-out buttons */
+.sc-head { font-size: 14.5px; letter-spacing: -.1px; }
+.sc-foot .danger-btn, .sc-foot .primary-btn.sm { height: 34px; padding: 0 14px; margin: 0; }
+.danger-btn:active, .primary-btn.sm:active:not(:disabled) { transform: scale(.96); }
